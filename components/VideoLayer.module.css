@@ -1,0 +1,22 @@
+.videoOverlay {
+  display: block;
+  position: relative;
+  height: 480px;
+  width: 360px;
+}
+.videoTop {
+  height: 100%;
+  width: 100%;
+  opacity: 0.5;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.videoBottom {
+  height: 100%;
+  width: 100%;
+  opacity: 1.0;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
