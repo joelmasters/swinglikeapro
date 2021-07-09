@@ -1,6 +1,7 @@
 
 import styles from './Splash.module.css'
 import MainCarousel from './MainCarousel'
+import SignupForm from './SignupForm'
 
 export default function Splash() {
   return (
@@ -13,6 +14,7 @@ export default function Splash() {
         <li>Advance the science and skill of disc golf</li>
         <li>Grow the game</li>
       </ul>
+      <SignupForm />
     </div>
   )
 }
