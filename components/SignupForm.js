@@ -21,6 +21,16 @@ const CustomForm = ({ status, message, onValidated }) => {
         display: "inline-block"
       }}
     >
+      <input
+        style={{ fontSize: "1em", padding: 5, margin: 5, borderRadius: 3, border: "1px solid #555", width: 300, textAlign: "center" }}
+        ref={node => (email = node)}
+        type="email"
+        placeholder="Your email"
+      />
+      <br />
+      <button style={{ fontSize: "1em", padding: 5, margin: 5, borderRadius: 2 }} onClick={submit}>
+        Submit
+      </button>
       {status === "sending" && <div style={{ color: "blue" }}>sending...</div>}
       {status === "error" && (
         <div
@@ -34,16 +44,6 @@ const CustomForm = ({ status, message, onValidated }) => {
           dangerouslySetInnerHTML={{ __html: message }}
         />
       )}
-      <input
-        style={{ fontSize: "1em", padding: 5, margin: 5, borderRadius: 3, border: "1px solid #555" }}
-        ref={node => (email = node)}
-        type="email"
-        placeholder="Your email"
-      />
-      <br />
-      <button style={{ fontSize: "1em", padding: 5, margin: 5, borderRadius: 2 }} onClick={submit}>
-        Submit
-      </button>
     </div>
   );
 };
@@ -58,10 +58,11 @@ const SignupForm = () => (
       url={url}
       render={({ subscribe, status, message }) => (
         <div>
-          <CustomForm onSubmitted={formData => subscribe(formData)} />
-          {status === "sending" && <div style={{ color: "blue" }}>sending...</div>}
-          {status === "error" && <div style={{ color: "red" }} dangerouslySetInnerHTML={{__html: message}}/>}
-          {status === "success" && <div style={{ color: "green" }}>Subscribed !</div>}
+          <CustomForm 
+            status={status}
+            message={message}
+            onValidated={formData => subscribe(formData)}
+            />
         </div>
       )}
     />
