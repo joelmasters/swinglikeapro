@@ -13,6 +13,7 @@ export default function Splash() {
         <li>Provide disc golfers of all levels with performance metrics that will help them improve their games</li>
         <li>Advance the science and skill of disc golf</li>
         <li>Grow the game</li>
+        <li>Build and support the local community</li>
       </ul>
       <SignupForm />
     </div>
