@@ -11,6 +11,7 @@ export default function Header() {
         <Nav className="mr-auto">
           <Nav.Link href="/">Home</Nav.Link>
           <Nav.Link href="/shop">Shop</Nav.Link>
+          <Nav.Link href="/form-app">Form App</Nav.Link>
           {/*<Nav.Link href="/blog">Blog</Nav.Link>*/}
         </Nav>
       </Navbar.Collapse>
