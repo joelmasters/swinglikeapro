@@ -15,6 +15,7 @@ export default function Form() {
   const [stepped, setStepped] = useState(false);
   const [stepTimer, setStepTimer] = useState(undefined);
   const [stepTime, setStepTime] = useState(5);
+  const [numberOfSteps, setNumberOfSteps] = useState(7);
 
   useEffect(()=> {
     // initially set the height of the webcam video to be equal to the height of the provideo
@@ -52,7 +53,7 @@ export default function Form() {
 
     // calculate the step
     let totalTime = proVid.current.duration;
-    let step = totalTime / 7;
+    let step = totalTime / numberOfSteps;
 
     // create a timer to trigger every 5 seconds
     setStepTimer(setInterval(() => {
@@ -72,7 +73,27 @@ export default function Form() {
 
     // calculate the step
     let totalTime = proVid.current.duration;
-    let step = totalTime / 7;
+    let step = totalTime / numberOfSteps;
+
+    if (stepTimer) {
+      clearInterval(stepTimer);
+      setStepTimer(setInterval(() => {
+        let newTime = proVid.current.currentTime += step;
+        if (newTime > totalTime) {
+          newTime = 0;
+        }
+        proVid.current.currenTime = newTime;
+      }, t*1000));
+    }
+  }
+
+  const numberOfStepsChange = (e) => {
+    let n = e.target.value;
+    setNumberOfSteps(n);
+
+    // calculate the step
+    let totalTime = proVid.current.duration;
+    let step = totalTime / n;
 
     if (stepTimer) {
       clearInterval(stepTimer);
@@ -88,48 +109,109 @@ export default function Form() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Welcome to the Form App</h1>
-      <div>
-        <input type="range" id="pro-vid-opacity" name="pro-vid-opacity" 
-              min="0" max="100" step="10"
-              value={proOpacity}
-              onChange={e => setProOpacity(e.target.value)} />
-        <label htmlFor="pro-vid-opacity">Pro {proOpacity}%</label>
-        <input type="range" 
-               id="cam-vid-opacity" 
-               name="cam-vid-opacity" 
-               min="0" max="100" step="10"
-               value={camOpacity}
-               onChange={e => setCamOpacity(e.target.value)} />
-        <label htmlFor="cam-vid-opacity">You {camOpacity}%</label>
-        <button onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
-        <input type="range" 
-               id="pro-rate" 
-               name="pro-rate" 
-               min="0" max="100" step="10"
-               value={proRate}
-               onChange={proRateChange} />
-        <label htmlFor="pro-rate">Video Speed: {proRate}</label>
-        <input type="checkbox" 
-               id="step-video" 
-               name="step-video"
-               onChange={changeToStepped}
-               checked={stepped} />
-        <label htmlFor="step-video">Step Video</label>
-        <input type="range" 
-               id="step-time" 
-               name="step-time" 
-               min="0" max="10" step="1"
-               value={stepTime}
-               onChange={stepTimeChange} />
-        <label htmlFor="step-time">Step Time: {stepTime}s</label>
-        {/*<input type="range" 
-               id="pro-zoom" 
-               name="pro-zoom" 
-               min="100" max="200" step="10"
-               value={proZoom}
-               onChange={e => setProZoom(e.target.value)} />
-  <label htmlFor="pro-zoom">Zoom: {proZoom}%</label>*/}
+      <div className={styles.optionContainer}>
+        <table className={styles.optionsTable}>
+          <tr>
+            <td className={styles.optionBlockLeft}>
+              Pro Video Opacity
+            </td>
+            <td className={styles.optionBlockRight}>
+              <input className={styles.optionBlock}
+                    type="range" id="pro-vid-opacity" name="pro-vid-opacity" 
+                    min="0" max="100" step="10"
+                    value={proOpacity}
+                    onChange={e => setProOpacity(e.target.value)} />
+              <label htmlFor="pro-vid-opacity">{proOpacity}%</label>
+            </td>
+          </tr>
+          <tr >
+            <td className={styles.optionBlockLeft}>
+              Your Video Opacity
+            </td>
+            <td className={styles.optionBlockRight}>          
+              <input className={styles.optionBlock}
+                    type="range" 
+                    id="cam-vid-opacity" 
+                    name="cam-vid-opacity" 
+                    min="0" max="100" step="10"
+                    value={camOpacity}
+                    onChange={e => setCamOpacity(e.target.value)} />
+              <label htmlFor="cam-vid-opacity">{camOpacity}%</label>
+            </td>
+          </tr>
+          <tr>
+            <td className={styles.optionBlockLeft}>
+              Video Speed 
+            </td>
+            <td className={styles.optionBlockRight}>
+              <input className={styles.optionBlock}
+                    type="range" 
+                    id="pro-rate" 
+                    name="pro-rate" 
+                    min="0" max="100" step="10"
+                    value={proRate}
+                    onChange={proRateChange} />
+              <label htmlFor="pro-rate">{proRate}%</label>
+            </td>
+          </tr>
+          <tr>
+            <td className={styles.optionBlockLeft}>
+              Step Time
+            </td>
+            <td className={styles.optionBlockRight}>
+              <input className={styles.optionBlock}
+                    type="range" 
+                    id="step-time" 
+                    name="step-time" 
+                    min="0" max="10" step="1"
+                    value={stepTime}
+                    onChange={stepTimeChange} />
+              <label htmlFor="step-time">{stepTime}s</label>
+            </td>
+          </tr>
+          <tr>
+            <td className={styles.optionBlockLeft}>
+              Number of Steps
+            </td>
+            <td className={styles.optionBlockRight}>
+              <input className={styles.optionBlock}
+                    type="range" 
+                    id="number-of-steps" 
+                    name="number-of-steps" 
+                    min="3" max="15" step="1"
+                    value={numberOfSteps}
+                    onChange={numberOfStepsChange} />
+              <label htmlFor="number-of-steps">{numberOfSteps}</label>
+            </td>
+          </tr>
+          <tr>
+            <td className={styles.optionBlockLeft}>
+              Step Video
+            </td>
+            <td className={styles.optionBlockRight}>
+              <input className={styles.optionBlock}
+                    type="checkbox" 
+                    id="step-video" 
+                    name="step-video"
+                    onChange={changeToStepped}
+                    checked={stepped} />
+            </td>
+          </tr>
+          <tr>
+            <td colSpan={2}
+                className={styles.buttonCell}>
+              <button className={styles.buttonFlip}
+                  onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
+            </td>
+          </tr>
+          {/*<input type="range" 
+                id="pro-zoom" 
+                name="pro-zoom" 
+                min="100" max="200" step="10"
+                value={proZoom}
+                onChange={e => setProZoom(e.target.value)} />
+    <label htmlFor="pro-zoom">Zoom: {proZoom}%</label>*/}
+      </table>
       </div>
       <div className={styles.videoContainer}>
         <div className={styles.webcamContainer}
@@ -139,6 +221,7 @@ export default function Form() {
                }}>
           <Webcam 
               height={videoHeight}
+              videoConstraints={{facingMode: 'user'}}
           />
         </div>
         <video ref={proVid} 
@@ -150,7 +233,7 @@ export default function Form() {
                  opacity:proOpacity + '%',
                  transform: 'scale(' + proZoom / 100 + ')',
                 }}>
-          <source src="/videos/eagle5.webm"
+          <source src="/videos/eagle6.webm"
               type="video/webm" />
         </video>
       </div>
