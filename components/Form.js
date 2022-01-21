@@ -16,6 +16,7 @@ export default function Form() {
   const [stepTimer, setStepTimer] = useState(undefined);
   const [stepTime, setStepTime] = useState(5);
   const [numberOfSteps, setNumberOfSteps] = useState(7);
+  const [barStyle, setBarStyle] = useState({transition: 'all 0s',transform: 'none'});
 
   useEffect(()=> {
     // initially set the height of the webcam video to be equal to the height of the provideo
@@ -55,14 +56,8 @@ export default function Form() {
     let totalTime = proVid.current.duration;
     let step = totalTime / numberOfSteps;
 
-    // create a timer to trigger every 5 seconds
-    setStepTimer(setInterval(() => {
-      let newTime = proVid.current.currentTime += step;
-      if (newTime > totalTime) {
-        newTime = 0;
-      }
-      proVid.current.currenTime = newTime;
-    }, stepTime*1000));
+    // create a timer to trigger every {step} seconds
+    startStepTimer(totalTime, step);
 
     setStepped(true);
   }
@@ -77,13 +72,7 @@ export default function Form() {
 
     if (stepTimer) {
       clearInterval(stepTimer);
-      setStepTimer(setInterval(() => {
-        let newTime = proVid.current.currentTime += step;
-        if (newTime > totalTime) {
-          newTime = 0;
-        }
-        proVid.current.currenTime = newTime;
-      }, t*1000));
+      startStepTimer(totalTime, step);
     }
   }
 
@@ -97,14 +86,21 @@ export default function Form() {
 
     if (stepTimer) {
       clearInterval(stepTimer);
-      setStepTimer(setInterval(() => {
-        let newTime = proVid.current.currentTime += step;
-        if (newTime > totalTime) {
-          newTime = 0;
-        }
-        proVid.current.currenTime = newTime;
-      }, t*1000));
+      startStepTimer(totalTime, step);
     }
+  }
+
+  const startStepTimer = (totalTime, step) => {
+    setStepTimer(setInterval(() => {
+      setBarStyle({transition: 'all 0s',transform: 'none'});
+      setBarStyle({transition: 'all ' + stepTime + 's',transform: 'translateX(-100%)'});
+
+      let newTime = proVid.current.currentTime += step;
+      if (newTime > totalTime) {
+        newTime = 0;
+      }
+      proVid.current.currenTime = newTime;
+    }, stepTime*1000));  
   }
 
   return (
@@ -235,7 +231,16 @@ export default function Form() {
                 }}>
           <source src="/videos/eagle6.webm"
               type="video/webm" />
+          <source src="/videos/eagle6.mp4"
+              type="video/mp4" />
         </video>
+        <div className={styles.countDownContainer}>
+          <div 
+              className={styles.countDownBar}
+              style={barStyle}
+            >
+          </div>
+        </div>
       </div>
       {/*<div className={styles.videoControlButtonContainer}>
         <button className={styles.videoControl}>Play</button>

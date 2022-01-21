@@ -62,3 +62,16 @@
 .buttonFlip {
   transform: translateX(-50%);
 }
+.countDownContainer {
+  height: 10px;
+  width: 100vw;
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  border: 1px solid black;
+}
+.countDownBar {
+  height: 100%;
+  width: 100%;
+  background: blueviolet;
+}
