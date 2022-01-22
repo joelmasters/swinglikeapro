@@ -6,6 +6,7 @@ import styles from './Form.module.css'
 export default function Form() {
 
   const proVid = useRef(null);
+  const progressBar = useRef(null);
   const [videoHeight, setVideoHeight] = useState(0);
   const [proOpacity, setProOpacity] = useState(50);
   const [camOpacity, setCamOpacity] = useState(100);
@@ -17,6 +18,7 @@ export default function Form() {
   const [stepTime, setStepTime] = useState(5);
   const [numberOfSteps, setNumberOfSteps] = useState(7);
   const [barStyle, setBarStyle] = useState({transition: 'all 0s',transform: 'none'});
+  const [runningAnimation, setRunningAnimation] = useState(undefined);
 
   useEffect(()=> {
     // initially set the height of the webcam video to be equal to the height of the provideo
@@ -39,6 +41,8 @@ export default function Form() {
       // stop the timer
       clearInterval(stepTimer);
       setStepped(false);
+      runningAnimation.cancel();
+      setRunningAnimation(undefined);
 
       // pause the video and reset back to time zero
       proVid.current.pause();
@@ -57,7 +61,7 @@ export default function Form() {
     let step = totalTime / numberOfSteps;
 
     // create a timer to trigger every {step} seconds
-    startStepTimer(totalTime, step);
+    startStepTimer(totalTime, step, stepTime);
 
     setStepped(true);
   }
@@ -72,7 +76,7 @@ export default function Form() {
 
     if (stepTimer) {
       clearInterval(stepTimer);
-      startStepTimer(totalTime, step);
+      startStepTimer(totalTime, step, t);
     }
   }
 
@@ -86,27 +90,47 @@ export default function Form() {
 
     if (stepTimer) {
       clearInterval(stepTimer);
-      startStepTimer(totalTime, step);
+      startStepTimer(totalTime, step, stepTime);
     }
   }
 
-  const startStepTimer = (totalTime, step) => {
-    setStepTimer(setInterval(() => {
-      setBarStyle({transition: 'all 0s',transform: 'none'});
-      setBarStyle({transition: 'all ' + stepTime + 's',transform: 'translateX(-100%)'});
+  const startStepTimer = (totalTime, stepLength, stepPauseTime) => {
 
-      let newTime = proVid.current.currentTime += step;
+    proVid.current.currentTime = 0;
+
+    if (runningAnimation) {
+      runningAnimation.cancel();
+      setRunningAnimation(undefined);
+    }
+
+    let anim = progressBar.current.animate([
+      {transform: 'translateX(0%)'},
+      {transform: 'translateX(-100%)'}
+    ], {
+      duration: stepPauseTime*1000,
+      iterations: Infinity
+    });
+    setRunningAnimation(anim);
+
+    // clear the old timer before starting a new one
+    clearInterval(stepTimer);
+
+    let intervalId = setInterval(() => {
+      let newTime = proVid.current.currentTime += stepLength;
       if (newTime > totalTime) {
         newTime = 0;
       }
       proVid.current.currenTime = newTime;
-    }, stepTime*1000));  
+    }, stepPauseTime*1000);
+
+    setStepTimer(intervalId);  
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.optionContainer}>
         <table className={styles.optionsTable}>
+          <tbody>
           <tr>
             <td className={styles.optionBlockLeft}>
               Pro Video Opacity
@@ -159,7 +183,7 @@ export default function Form() {
                     type="range" 
                     id="step-time" 
                     name="step-time" 
-                    min="0" max="10" step="1"
+                    min="1" max="10" step="1"
                     value={stepTime}
                     onChange={stepTimeChange} />
               <label htmlFor="step-time">{stepTime}s</label>
@@ -200,13 +224,7 @@ export default function Form() {
                   onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
             </td>
           </tr>
-          {/*<input type="range" 
-                id="pro-zoom" 
-                name="pro-zoom" 
-                min="100" max="200" step="10"
-                value={proZoom}
-                onChange={e => setProZoom(e.target.value)} />
-    <label htmlFor="pro-zoom">Zoom: {proZoom}%</label>*/}
+      </tbody>
       </table>
       </div>
       <div className={styles.videoContainer}>
@@ -224,6 +242,7 @@ export default function Form() {
                controls
                muted 
                loop
+               playsInline
                className={styles.proVideo} 
                style={{
                  opacity:proOpacity + '%',
@@ -235,9 +254,10 @@ export default function Form() {
               type="video/mp4" />
         </video>
         <div className={styles.countDownContainer}>
-          <div 
+          <div ref={progressBar}
               className={styles.countDownBar}
-              style={barStyle}
+              style={{'--animTime': stepTime + 's'}}
+              active={stepped ? 1 : 0}
             >
           </div>
         </div>

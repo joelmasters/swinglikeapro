@@ -69,9 +69,14 @@
   bottom: 0px;
   left: 0px;
   border: 1px solid black;
+  overflow: hidden;
 }
 .countDownBar {
   height: 100%;
   width: 100%;
   background: blueviolet;
+  visibility: hidden;
+}
+.countDownBar[active="1"] {
+  visibility: visible;
 }
