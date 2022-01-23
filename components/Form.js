@@ -8,9 +8,10 @@ export default function Form() {
   const proVid = useRef(null);
   const progressBar = useRef(null);
   const [videoHeight, setVideoHeight] = useState(0);
+  const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
   const [camOpacity, setCamOpacity] = useState(100);
-  const [camOrientation, setCamOrientation] = useState(1);
+  const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(100);
   const [proZoom, setProZoom] = useState(100);
   const [stepped, setStepped] = useState(false);
@@ -126,9 +127,24 @@ export default function Form() {
     setStepTimer(intervalId);  
   }
 
+  const proVidSourceChange = (e) => {
+    setProSelection(e.target.value);
+  }
+
+  useEffect(() => {
+    proVid.current.load();
+  }, [proSelection])
+
   return (
     <div className={styles.container}>
       <div className={styles.optionContainer}>
+      <select name="pro-select" 
+              id="pro-select" 
+              value={proSelection}
+              onChange={proVidSourceChange}>
+          <option value="eagle">Eagle McMahon</option>
+          <option value="kajiyama">Manabu Kajiyama</option>
+      </select>
         <table className={styles.optionsTable}>
           <tbody>
           <tr>
@@ -246,11 +262,11 @@ export default function Form() {
                className={styles.proVideo} 
                style={{
                  opacity:proOpacity + '%',
-                 transform: 'scale(' + proZoom / 100 + ')',
+                 transform: 'scaleX(-1)',
                 }}>
-          <source src="/videos/eagle6.webm"
+          <source src={"/videos/" + proSelection + ".webm"}
               type="video/webm" />
-          <source src="/videos/eagle6.mp4"
+          <source src={"/videos/" + proSelection + ".mp4"}
               type="video/mp4" />
         </video>
         <div className={styles.countDownContainer}>
