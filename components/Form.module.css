@@ -80,3 +80,48 @@
 .countDownBar[active="1"] {
   visibility: visible;
 }
+.controlsContainer {
+  height: 40px;
+  width: 100vw;
+  position: absolute;
+  bottom: 10px;
+  left: 0px;
+  display: flex;
+  z-index: 5;
+}
+.controlsPlayButton {
+  height: 40px;
+  width: 50px;
+  background: transparent;
+  border: none;
+  margin: 0px 5px;
+  color: white;
+}
+.controlsProgressBarContainer {
+  height: 100%;
+  width: 95%;
+  position: relative;
+  margin: 0px auto;
+}
+.controlsProgressBarOutline {
+  height: 16px;
+  width: 100%;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 8px;
+  border: 1px solid steelblue;
+  opacity: 80%;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+.controlsProgressBarProgress {
+  height: 100%;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  background: steelblue;
+  border: none;
+  width: 200px;
+}

@@ -7,6 +7,7 @@ export default function Form() {
 
   const proVid = useRef(null);
   const progressBar = useRef(null);
+  const seekBar = useRef(null);
   const [videoHeight, setVideoHeight] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
@@ -20,6 +21,7 @@ export default function Form() {
   const [numberOfSteps, setNumberOfSteps] = useState(7);
   const [barStyle, setBarStyle] = useState({transition: 'all 0s',transform: 'none'});
   const [runningAnimation, setRunningAnimation] = useState(undefined);
+  const [seekWidth, setSeekWidth] = useState(0);
 
   useEffect(()=> {
     // initially set the height of the webcam video to be equal to the height of the provideo
@@ -134,6 +136,26 @@ export default function Form() {
   useEffect(() => {
     proVid.current.load();
   }, [proSelection])
+
+  const seekClicked = (e) => {
+    let offset = seekBar.current.offsetLeft;
+    let left = (e.pageX - offset);
+    let totalWidth = seekBar.current.getBoundingClientRect().width;
+    let percentage = ( left / totalWidth );
+    let vidTime = proVid.current.duration * percentage;
+    proVid.current.currentTime = vidTime;
+  }
+  const videoTimeUpdate = () => {
+    let percentage = ( proVid.current.currentTime / proVid.current.duration ) * 100;
+    setSeekWidth(percentage);
+  }
+  const playVideo = () => {
+    if (proVid.current.paused) {
+      proVid.current.play();
+    } else {
+      proVid.current.pause();
+    }
+  }
 
   return (
     <div className={styles.container}>
@@ -255,11 +277,11 @@ export default function Form() {
           />
         </div>
         <video ref={proVid} 
-               controls
                muted 
                loop
                playsInline
-               className={styles.proVideo} 
+               className={styles.proVideo}
+               onTimeUpdate={videoTimeUpdate} 
                style={{
                  opacity:proOpacity + '%',
                  transform: 'scaleX(-1)',
@@ -275,6 +297,26 @@ export default function Form() {
               style={{'--animTime': stepTime + 's'}}
               active={stepped ? 1 : 0}
             >
+          </div>
+        </div>
+        <div className={styles.controlsContainer}>
+          <button 
+              className={styles.controlsPlayButton}
+              onClick={playVideo}
+              >
+                Play
+          </button>
+          <div  ref={seekBar} 
+                className={styles.controlsProgressBarContainer}
+                onClick={seekClicked}
+                >
+            <div className={styles.controlsProgressBarOutline}>
+              <div 
+                  className={styles.controlsProgressBarProgress}
+                  style={{width: seekWidth + '%'}}
+                  >
+              </div>
+            </div>
           </div>
         </div>
       </div>
