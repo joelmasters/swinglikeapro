@@ -66,9 +66,9 @@
   height: 10px;
   width: 100vw;
   position: absolute;
-  bottom: 0px;
+  bottom: 60px;
   left: 0px;
-  border: 1px solid black;
+  border: none;
   overflow: hidden;
   visibility: hidden;
 }
@@ -78,20 +78,20 @@
 .countDownBar {
   height: 100%;
   width: 100%;
-  background: blueviolet;
+  background: orange;
 }
 .controlsContainer {
-  height: 40px;
+  height: 60px;
   width: 100vw;
   position: absolute;
-  bottom: 10px;
+  bottom: 0px;
   left: 0px;
   display: flex;
   z-index: 5;
-  background-color: rgba(0,0,0,0.3);
+  background-color:#555;
 }
 .controlsPlayButton {
-  height: 40px;
+  height: 60px;
   width: 50px;
   border: none;
   margin: 0px 5px;
@@ -115,7 +115,7 @@
   top: 50%;
   transform: translateY(-50%);
   border-radius: 8px;
-  border: 1px solid steelblue;
+  border: 1px solid rgb(100, 182, 248);
   opacity: 80%;
   background: transparent;
   cursor: pointer;
@@ -126,10 +126,10 @@
   position: absolute;
   left: 0px;
   bottom: 0px;
-  background: steelblue;
+  background: rgb(100, 182, 248);
   border: none;
   width: 200px;
 }
 .proVideo::-webkit-media-controls {
-  display: none;
+  
 }
