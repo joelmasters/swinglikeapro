@@ -57,10 +57,10 @@
   width: 100%;
 }
 .buttonCell {
-  text-align: center;
+  text-align: right;
 }
 .buttonFlip {
-  transform: translateX(-50%);
+  
 }
 .countDownContainer {
   height: 10px;
@@ -70,15 +70,15 @@
   left: 0px;
   border: 1px solid black;
   overflow: hidden;
+  visibility: hidden;
+}
+.countDownContainer[active="1"] {
+  visibility: visible;
 }
 .countDownBar {
   height: 100%;
   width: 100%;
   background: blueviolet;
-  visibility: hidden;
-}
-.countDownBar[active="1"] {
-  visibility: visible;
 }
 .controlsContainer {
   height: 40px;
@@ -88,14 +88,19 @@
   left: 0px;
   display: flex;
   z-index: 5;
+  background-color: rgba(0,0,0,0.3);
 }
 .controlsPlayButton {
   height: 40px;
   width: 50px;
-  background: transparent;
   border: none;
   margin: 0px 5px;
   color: white;
+  background: transparent;
+  transition: all 0.2s;
+}
+.controlsPlayButton:hover {
+  color: steelblue;
 }
 .controlsProgressBarContainer {
   height: 100%;
@@ -124,4 +129,7 @@
   background: steelblue;
   border: none;
   width: 200px;
+}
+.proVideo::-webkit-media-controls {
+  display: none;
 }

@@ -11,6 +11,7 @@ export default function Form() {
   const [videoHeight, setVideoHeight] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
+  const [proOrientation, setProOrientation] = useState(-1);
   const [camOpacity, setCamOpacity] = useState(100);
   const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(100);
@@ -165,6 +166,7 @@ export default function Form() {
               value={proSelection}
               onChange={proVidSourceChange}>
           <option value="eagle">Eagle McMahon</option>
+          <option value="ricky">Ricky Wysocki</option>
           <option value="kajiyama">Manabu Kajiyama</option>
       </select>
         <table className={styles.optionsTable}>
@@ -256,8 +258,16 @@ export default function Form() {
             </td>
           </tr>
           <tr>
-            <td colSpan={2}
-                className={styles.buttonCell}>
+            <td
+                className={styles.buttonCell}
+                >
+              <button className={styles.buttonFlip}
+                  onClick={() => setProOrientation(proOrientation === 1 ? -1 : 1)}>Flip Pro</button>
+            </td>
+            <td
+                className={styles.buttonCell}
+                style={{textAlign: 'left'}}
+                >
               <button className={styles.buttonFlip}
                   onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
             </td>
@@ -280,22 +290,24 @@ export default function Form() {
                muted 
                loop
                playsInline
+               controls
                className={styles.proVideo}
                onTimeUpdate={videoTimeUpdate} 
                style={{
                  opacity:proOpacity + '%',
-                 transform: 'scaleX(-1)',
+                 transform: 'scaleX(' + proOrientation + ')',
                 }}>
           <source src={"/videos/" + proSelection + ".webm"}
               type="video/webm" />
           <source src={"/videos/" + proSelection + ".mp4"}
               type="video/mp4" />
         </video>
-        <div className={styles.countDownContainer}>
+        <div 
+            className={styles.countDownContainer}
+            active={stepped ? 1 : 0}>
           <div ref={progressBar}
               className={styles.countDownBar}
               style={{'--animTime': stepTime + 's'}}
-              active={stepped ? 1 : 0}
             >
           </div>
         </div>
