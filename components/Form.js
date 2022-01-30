@@ -108,8 +108,8 @@ export default function Form() {
     }
 
     let anim = progressBar.current.animate([
-      {transform: 'translateX(0%)'},
-      {transform: 'translateX(-100%)'}
+      {transform: 'translateX(-100%)'},
+      {transform: 'translateX(0%)'}
     ], {
       duration: stepPauseTime*1000,
       iterations: Infinity
@@ -152,6 +152,22 @@ export default function Form() {
   }
   const playVideo = () => {
     if (proVid.current.paused) {
+      proVid.current.play();
+    } else {
+      proVid.current.pause();
+    }
+  }
+
+  const startOrStopVideo = () => {
+    
+    // if stepped video is playing, stop it
+    if (stepped) {
+      clearInterval(stepTimer);
+      setStepped(false);
+      runningAnimation.cancel();
+      setRunningAnimation(undefined);
+      proVid.current.pause();
+    } else if (proVid.current.paused) {
       proVid.current.play();
     } else {
       proVid.current.pause();
@@ -275,7 +291,9 @@ export default function Form() {
       </tbody>
       </table>
       </div>
-      <div className={styles.videoContainer}>
+      <div className={styles.videoContainer}
+        onClick={startOrStopVideo}
+      >
         <div className={styles.webcamContainer}
              style={{
                 opacity:camOpacity + '%',
