@@ -292,8 +292,11 @@ export default function Form() {
       </table>
       </div>
       <div className={styles.videoContainer}
-        onClick={startOrStopVideo}
+        
       >
+        <div className={styles.screenBlocker}
+             onClick={startOrStopVideo}>
+        </div>
         <div className={styles.webcamContainer}
              style={{
                 opacity:camOpacity + '%',
