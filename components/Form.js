@@ -311,7 +311,6 @@ export default function Form() {
                muted 
                loop
                playsInline
-               controls
                className={styles.proVideo}
                onTimeUpdate={videoTimeUpdate} 
                style={{
