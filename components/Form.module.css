@@ -114,7 +114,7 @@
   transition: all 0.2s;
 }
 .controlsPlayButton:hover {
-  color: steelblue;
+  color: orange;
 }
 .controlsProgressBarContainer {
   height: 100%;
