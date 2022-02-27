@@ -15,18 +15,19 @@ export default function Form() {
   const [camOpacity, setCamOpacity] = useState(100);
   const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(100);
-  const [proZoom, setProZoom] = useState(100);
   const [stepped, setStepped] = useState(false);
   const [stepTimer, setStepTimer] = useState(undefined);
   const [stepTime, setStepTime] = useState(5);
   const [numberOfSteps, setNumberOfSteps] = useState(7);
-  const [barStyle, setBarStyle] = useState({transition: 'all 0s',transform: 'none'});
   const [runningAnimation, setRunningAnimation] = useState(undefined);
   const [seekWidth, setSeekWidth] = useState(0);
 
   useEffect(()=> {
-    // initially set the height of the webcam video to be equal to the height of the provideo
-    setVideoHeight(proVid.current.scrollHeight)
+    // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
+    setTimeout(() => {
+      setVideoHeight(proVid.current.scrollHeight)
+    }, 2000);
+    
 
     // add listener to change the video height on resize
     window.addEventListener('resize', ()=> {

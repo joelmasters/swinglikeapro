@@ -16,6 +16,7 @@
   width: 100vw;
   height: auto;
   overflow: hidden;
+  background: #333;
 }
 .screenBlocker {
   position: absolute;
@@ -113,9 +114,7 @@
   background: transparent;
   transition: all 0.2s;
 }
-.controlsPlayButton:hover {
-  color: orange;
-}
+
 .controlsProgressBarContainer {
   height: 100%;
   width: 95%;
