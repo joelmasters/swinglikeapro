@@ -305,7 +305,11 @@ export default function Form() {
                }}>
           <Webcam 
               height={videoHeight}
-              videoConstraints={{facingMode: 'user'}}
+              videoConstraints={{}}
+              onUserMedia={() => {console.log('connected to user media')}}
+              onUserMediaError={(e) => {
+                console.log('unable to connect to user media', e)
+              }}
           />
         </div>
         <video ref={proVid} 
