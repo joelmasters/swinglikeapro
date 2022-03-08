@@ -1,6 +1,9 @@
 .container {
   text-align: center;
 }
+.optionContainer {
+  margin-top: 10px;
+}
 .title {
   margin-top: 50px;
   margin-bottom: 50px;
@@ -26,6 +29,7 @@
   height: 100%;
   opacity: 0%;
   z-index: 4;
+  cursor: pointer;
 }
 .proVideo {
   max-height: 100vh;
@@ -84,10 +88,10 @@
   left: 0px;
   border: none;
   overflow: hidden;
-  visibility: hidden;
+  display: none;
 }
 .countDownContainer[active="1"] {
-  visibility: visible;
+  display: block;
 }
 .countDownBar {
   height: 100%;
@@ -142,5 +146,15 @@
   background: rgb(100, 182, 248);
   border: none;
   width: 200px;
+}
+.speechContainer {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  color: red;
+  height: 30px;
+  width: 200px;
+  text-align: left;
+  padding: 5px;
 }
 

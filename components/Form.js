@@ -5,9 +5,18 @@ import styles from './Form.module.css'
 
 export default function Form() {
 
+  const PAUSE_TIME = 5000; // ms to pause at end of video before looping
+  const SPEECH_DELAY_TIME = 2.0; // delay in seconds for video
+
+  let speechStartTime = 0;
+
   const proVid = useRef(null);
   const progressBar = useRef(null);
+  const pauseBar = useRef(null);
   const seekBar = useRef(null);
+  const speechContainer = useRef(null);
+  const speechText = useRef(null);
+
   const [videoHeight, setVideoHeight] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
@@ -21,6 +30,9 @@ export default function Form() {
   const [numberOfSteps, setNumberOfSteps] = useState(7);
   const [runningAnimation, setRunningAnimation] = useState(undefined);
   const [seekWidth, setSeekWidth] = useState(0);
+  const [inDelayTime, setInDelayTime] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -33,12 +45,150 @@ export default function Form() {
     window.addEventListener('resize', ()=> {
         setVideoHeight(proVid.current.scrollHeight);
     })
+
+    proVid.current.addEventListener('ended', () => {
+      setInDelayTime(true);
+      pauseBar.current.animate([
+        {transform: 'translateX(-100%)'},
+        {transform: 'translateX(0%)'}
+      ], {
+        duration: PAUSE_TIME,
+        iterations: 1
+      });
+      setTimeout(() => {
+        proVid.current.currentTime = 0;
+        proVid.current.play();
+        setInDelayTime(false);
+      }, PAUSE_TIME)
+    })
+
+    speechText.current.onanimationend = function() {
+      speechText.current.innerText = '';
+      console.log("animation ended");
+    }
+
+    var SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
+    var SpeechGrammarList = window.SpeechGrammarList || webkitSpeechGrammarList;
+    var SpeechRecognitionEvent = window.SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
+
+    var commands = [ 'play', 'stop', 'slow down', 'speed up'];
+    var grammar = '#JSGF V1.0; grammar commands; public <command> = ' + commands.join(' | ') + ' ;';
+
+    var recognition = new SpeechRecognition();
+    var speechRecognitionList = new SpeechGrammarList();
+
+    speechRecognitionList.addFromString(grammar, 1);
+
+    recognition.grammars = speechRecognitionList;
+    recognition.continuous = true;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+    console.log("speech detection started");
+
+    recognition.onspeechstart = function() {
+      console.log("started hearing speech");
+      console.log(new Date());
+      speechStartTime = new Date();
+      setIsSpeaking(true);
+    }
+
+
+    recognition.onresult = function(event) {
+      let comm = event.results[event.results.length-1][0].transcript.trim().toLowerCase();
+      speechText.current.innerText = comm;
+      let speechDelayTime = new Date() - speechStartTime;
+
+      setTimeout(() => {
+        speechText.current.animate([
+          {opacity: '1.0'},
+          {opacity: '0.0'}
+        ], {
+          duration: 1000,
+          iterations: 1
+        });
+      }, 3000);
+
+      switch(comm) {
+        case('play'):
+          proVid.current.play();
+          break;
+        case('pause'):
+        case('stop'):
+          proVid.current.pause();
+          backtrackVideo(speechDelayTime);
+          break;
+        case('slow down'):
+          slowDownVideo();
+          break;
+        case('speed up'):
+          speedUpVideo();
+          break;
+        default:
+          console.log("unrecognized command");
+          break;  
+      }
+
+      //console.log('Confidence: ' + event.results[0][0].confidence);
+      setIsSpeaking(false);
+    }
+
+    recognition.onspeechend = function() {
+      console.log("speech stopped");
+
+      setTimeout(() => {
+        recognition.start();
+        console.log("speech starting again");
+      }, 400);
+    }
+
+    recognition.onnomatch = function(event) {
+      console.log("I didn't recognize that command");
+    }
+
+    recognition.onerror = function(event) {
+      console.log('Error occurred in recognition: ' + event.error);
+      setTimeout(() => {
+        recognition.start();
+        console.log("speech starting again");
+      }, 400);
+    }
+
   }, [])
+
+  useEffect(() => {
+
+  }, [proRate])
 
   const proRateChange = (e) => {
     let rate = e.target.value;
     proVid.current.playbackRate = rate / 100;
-    setProRate(rate);
+    setProRate(parseInt(rate));
+  }
+
+  const slowDownVideo = () => {
+    if (proRate > 0) {
+      proVid.current.playbackRate -= 0.1;
+      setProRate(proRate - 10);
+    }
+  }
+
+  const speedUpVideo = () => {
+    if (proRate < 100) {
+      proVid.current.playbackRate += 0.1;
+      setProRate(proRate + 10);
+    }
+  }
+
+  const backtrackVideo = (time) => {
+    let currTime = proVid.current.currentTime;
+    let backTime = currTime - time;
+    if (backTime < 0) {
+      backTime = proVid.current.totalTime + backTime;
+    }
+    proVid.current.currentTime = backTime;
   }
 
   const changeToStepped = () => {
@@ -51,6 +201,7 @@ export default function Form() {
 
       // pause the video and reset back to time zero
       proVid.current.pause();
+
       proVid.current.currentTime = 0;
       return
     } 
@@ -178,14 +329,14 @@ export default function Form() {
   return (
     <div className={styles.container}>
       <div className={styles.optionContainer}>
-      <select name="pro-select" 
-              id="pro-select" 
-              value={proSelection}
-              onChange={proVidSourceChange}>
+        <select name="pro-select" 
+                id="pro-select" 
+                value={proSelection}
+                onChange={proVidSourceChange}>
           <option value="eagle">Eagle McMahon</option>
           <option value="ricky">Ricky Wysocki</option>
           <option value="kajiyama">Manabu Kajiyama</option>
-      </select>
+        </select>
         <table className={styles.optionsTable}>
           <tbody>
           <tr>
@@ -292,9 +443,7 @@ export default function Form() {
       </tbody>
       </table>
       </div>
-      <div className={styles.videoContainer}
-        
-      >
+      <div className={styles.videoContainer}>
         <div className={styles.screenBlocker}
              onClick={startOrStopVideo}>
         </div>
@@ -304,17 +453,17 @@ export default function Form() {
                 transform: 'scaleX('+camOrientation+')',
                }}>
           <Webcam 
+              audio={false}
               height={videoHeight}
-              videoConstraints={{}}
+              videoConstraints={{facingMode: "user"}}
               onUserMedia={() => {console.log('connected to user media')}}
               onUserMediaError={(e) => {
-                console.log('unable to connect to user media', e)
+                console.log('unable to connect to user media (camera)', e)
               }}
           />
         </div>
         <video ref={proVid} 
                muted 
-               loop
                playsInline
                className={styles.proVideo}
                onTimeUpdate={videoTimeUpdate} 
@@ -333,6 +482,14 @@ export default function Form() {
           <div ref={progressBar}
               className={styles.countDownBar}
               style={{'--animTime': stepTime + 's'}}
+            >
+          </div>
+        </div>
+        <div 
+            className={styles.countDownContainer}
+            active={inDelayTime ? 1 : 0}>
+          <div ref={pauseBar}
+              className={styles.countDownBar}
             >
           </div>
         </div>
@@ -356,10 +513,10 @@ export default function Form() {
             </div>
           </div>
         </div>
+        <div className={styles.speechContainer} ref={speechContainer}>
+          {isSpeaking ? <i className="bi bi-mic-fill"></i> : <i className="bi bi-mic"></i>} <span ref={speechText}></span>
+        </div>
       </div>
-      {/*<div className={styles.videoControlButtonContainer}>
-        <button className={styles.videoControl}>Play</button>
-      </div>*/}
     </div>
   )
 }
