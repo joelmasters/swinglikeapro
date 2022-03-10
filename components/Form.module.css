@@ -156,5 +156,18 @@
   width: 200px;
   text-align: left;
   padding: 5px;
+} 
+
+.fadeOutAnimation {
+  animation: fadeout 1s forwards;
+}
+
+@keyframes fadeout {
+  0% {
+    opacity: 1.0;
+  }
+  100% {
+    opacity: 0.0;
+  }
 }
 

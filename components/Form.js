@@ -6,7 +6,7 @@ import styles from './Form.module.css'
 export default function Form() {
 
   const PAUSE_TIME = 5000; // ms to pause at end of video before looping
-  const SPEECH_DELAY_TIME = 2.0; // delay in seconds for video
+  const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
 
   let speechStartTime = 0;
 
@@ -62,11 +62,6 @@ export default function Form() {
       }, PAUSE_TIME)
     })
 
-    speechText.current.onanimationend = function() {
-      speechText.current.innerText = '';
-      console.log("animation ended");
-    }
-
     var SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
     var SpeechGrammarList = window.SpeechGrammarList || webkitSpeechGrammarList;
     var SpeechRecognitionEvent = window.SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
@@ -82,15 +77,12 @@ export default function Form() {
     recognition.grammars = speechRecognitionList;
     recognition.continuous = true;
     recognition.lang = 'en-US';
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.start();
-    console.log("speech detection started");
 
     recognition.onspeechstart = function() {
-      console.log("started hearing speech");
-      console.log(new Date());
       speechStartTime = new Date();
       setIsSpeaking(true);
     }
@@ -102,13 +94,7 @@ export default function Form() {
       let speechDelayTime = new Date() - speechStartTime;
 
       setTimeout(() => {
-        speechText.current.animate([
-          {opacity: '1.0'},
-          {opacity: '0.0'}
-        ], {
-          duration: 1000,
-          iterations: 1
-        });
+        speechText.current.classList.add(styles.fadeOutAnimation);
       }, 3000);
 
       switch(comm) {
@@ -117,8 +103,10 @@ export default function Form() {
           break;
         case('pause'):
         case('stop'):
-          proVid.current.pause();
-          backtrackVideo(speechDelayTime);
+          if (!proVid.current.paused) {
+            proVid.current.pause();
+            backtrackVideo(speechDelayTime);
+          }
           break;
         case('slow down'):
           slowDownVideo();
@@ -184,9 +172,9 @@ export default function Form() {
 
   const backtrackVideo = (time) => {
     let currTime = proVid.current.currentTime;
-    let backTime = currTime - time;
+    let backTime = currTime - SPEECH_DELAY_TIME*proRate/100; // convert from ms to s
     if (backTime < 0) {
-      backTime = proVid.current.totalTime + backTime;
+      backTime = proVid.current.duration + backTime;
     }
     proVid.current.currentTime = backTime;
   }
@@ -514,7 +502,15 @@ export default function Form() {
           </div>
         </div>
         <div className={styles.speechContainer} ref={speechContainer}>
-          {isSpeaking ? <i className="bi bi-mic-fill"></i> : <i className="bi bi-mic"></i>} <span ref={speechText}></span>
+          {isSpeaking ? <i className="bi bi-mic-fill"></i> : <i className="bi bi-mic"></i>} 
+          <span ref={speechText}
+            onAnimationEnd={() => 
+              {
+                speechText.current.classList.remove(styles.fadeOutAnimation);
+                speechText.current.innerText = '';
+              }
+            }
+          ></span>
         </div>
       </div>
     </div>
