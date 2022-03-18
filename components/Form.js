@@ -23,7 +23,7 @@ export default function Form() {
   const [proOrientation, setProOrientation] = useState(-1);
   const [camOpacity, setCamOpacity] = useState(100);
   const [camOrientation, setCamOrientation] = useState(-1);
-  const [proRate, setProRate] = useState(100);
+  const [proRate, setProRate] = useState(50);
   const [stepped, setStepped] = useState(false);
   const [stepTimer, setStepTimer] = useState(undefined);
   const [stepTime, setStepTime] = useState(5);
@@ -32,6 +32,8 @@ export default function Form() {
   const [seekWidth, setSeekWidth] = useState(0);
   const [inDelayTime, setInDelayTime] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [debounceSpeechTimer, setDebounceSpeechTimer] = useState(undefined);
+  const [commLast, setCommLast] = useState(undefined);
   
 
   useEffect(()=> {
@@ -39,6 +41,8 @@ export default function Form() {
     setTimeout(() => {
       setVideoHeight(proVid.current.scrollHeight)
     }, 2000);
+
+    proVid.current.defaultPlaybackRate = 0.5;
     
 
     // add listener to change the video height on resize
@@ -66,7 +70,7 @@ export default function Form() {
     var SpeechGrammarList = window.SpeechGrammarList || webkitSpeechGrammarList;
     var SpeechRecognitionEvent = window.SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
 
-    var commands = [ 'play', 'stop', 'slow down', 'speed up'];
+    var commands = [ 'play', 'stop', 'slow down', 'speed up', 'pause', 'start'];
     var grammar = '#JSGF V1.0; grammar commands; public <command> = ' + commands.join(' | ') + ' ;';
 
     var recognition = new SpeechRecognition();
@@ -83,41 +87,22 @@ export default function Form() {
     recognition.start();
 
     recognition.onspeechstart = function() {
-      speechStartTime = new Date();
       setIsSpeaking(true);
     }
 
-
     recognition.onresult = function(event) {
+      let isFinal = event.results[event.results.length-1].isFinal;
+      if (isFinal) {
+        return
+      }
       let comm = event.results[event.results.length-1][0].transcript.trim().toLowerCase();
       speechText.current.innerText = comm;
-      let speechDelayTime = new Date() - speechStartTime;
 
       setTimeout(() => {
         speechText.current.classList.add(styles.fadeOutAnimation);
       }, 3000);
 
-      switch(comm) {
-        case('play'):
-          proVid.current.play();
-          break;
-        case('pause'):
-        case('stop'):
-          if (!proVid.current.paused) {
-            proVid.current.pause();
-            backtrackVideo(speechDelayTime);
-          }
-          break;
-        case('slow down'):
-          slowDownVideo();
-          break;
-        case('speed up'):
-          speedUpVideo();
-          break;
-        default:
-          console.log("unrecognized command");
-          break;  
-      }
+      debounce(processSpeech(comm), 3000);
 
       //console.log('Confidence: ' + event.results[0][0].confidence);
       setIsSpeaking(false);
@@ -127,8 +112,10 @@ export default function Form() {
       console.log("speech stopped");
 
       setTimeout(() => {
-        recognition.start();
-        console.log("speech starting again");
+        if (!recognition) {
+          recognition.start();
+          console.log("speech starting again");
+        }
       }, 400);
     }
 
@@ -147,30 +134,68 @@ export default function Form() {
   }, [])
 
   useEffect(() => {
-
+    proVid.current.playbackRate = proRate / 100;
+    console.log("updating proVid playback: ", proVid.current.playbackRate);
   }, [proRate])
+
+
+  const processSpeech = (comm) => {
+    switch(comm) {
+      case('play'):
+      case('start'):
+        proVid.current.play();
+        break;
+      case('pause'):
+      case('stop'):
+        if (!proVid.current.paused) {
+          proVid.current.pause();
+          backtrackVideo();
+        }
+        break;
+      case('slow down'):
+        debounce(slowDownVideo(), 300);
+        break;
+      case('speed up'):
+        debounce(speedUpVideo(), 300);
+        break;
+      default:
+        console.log("unrecognized command");
+        break;  
+    }
+  }
 
   const proRateChange = (e) => {
     let rate = e.target.value;
-    proVid.current.playbackRate = rate / 100;
-    setProRate(parseInt(rate));
+    //proVid.current.playbackRate = rate / 100;
+    setProRate(rate => parseInt(rate));
   }
 
   const slowDownVideo = () => {
-    if (proRate > 0) {
-      proVid.current.playbackRate -= 0.1;
-      setProRate(proRate - 10);
+    if (proVid.current.playbackRate > 0.0) {
+      setProRate(proRate => proRate - 10);
     }
+  }
+
+  const debounce = (func, timeout = 300) => {
+    let timer;
+    return (...args) => {
+      if (!timer) {
+        func.apply(this, args);
+      }
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = undefined;
+      }, timeout);
+    };
   }
 
   const speedUpVideo = () => {
-    if (proRate < 100) {
-      proVid.current.playbackRate += 0.1;
-      setProRate(proRate + 10);
+    if (proVid.current.playbackRate < 1.0) {
+      setProRate(proRate => proRate + 10);
     }
   }
 
-  const backtrackVideo = (time) => {
+  const backtrackVideo = () => {
     let currTime = proVid.current.currentTime;
     let backTime = currTime - SPEECH_DELAY_TIME*proRate/100; // convert from ms to s
     if (backTime < 0) {
