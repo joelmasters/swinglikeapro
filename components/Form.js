@@ -7,8 +7,7 @@ export default function Form() {
 
   const PAUSE_TIME = 5000; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
-
-  let speechStartTime = 0;
+  const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
 
   const proVid = useRef(null);
   const progressBar = useRef(null);
@@ -32,10 +31,8 @@ export default function Form() {
   const [seekWidth, setSeekWidth] = useState(0);
   const [inDelayTime, setInDelayTime] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [debounceSpeechTimer, setDebounceSpeechTimer] = useState(undefined);
-  const [commLast, setCommLast] = useState(undefined);
+  const [numSpeechRestarts, setNumSpeechRestarts] = useState(0);
   
-
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
     setTimeout(() => {
@@ -47,7 +44,7 @@ export default function Form() {
 
     // add listener to change the video height on resize
     window.addEventListener('resize', ()=> {
-        setVideoHeight(proVid.current.scrollHeight);
+      setVideoHeight(proVid.current.scrollHeight);
     })
 
     proVid.current.addEventListener('ended', () => {
@@ -56,14 +53,14 @@ export default function Form() {
         {transform: 'translateX(-100%)'},
         {transform: 'translateX(0%)'}
       ], {
-        duration: PAUSE_TIME,
+        duration: PAUSE_TIME * proVid.current.playbackRate,
         iterations: 1
       });
       setTimeout(() => {
         proVid.current.currentTime = 0;
         proVid.current.play();
         setInDelayTime(false);
-      }, PAUSE_TIME)
+      }, PAUSE_TIME * proVid.current.playbackRate)
     })
 
     var SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
@@ -93,6 +90,7 @@ export default function Form() {
     recognition.onresult = function(event) {
       let isFinal = event.results[event.results.length-1].isFinal;
       if (isFinal) {
+        // prevents duplicate results from registering
         return
       }
       let comm = event.results[event.results.length-1][0].transcript.trim().toLowerCase();
@@ -111,10 +109,15 @@ export default function Form() {
     recognition.onspeechend = function() {
       console.log("speech stopped");
 
+      if (numSpeechRestarts >= SPEECH_END_ITERATIONS) {
+        // do not restart speech -- 10 minutes has passed without detection
+        return
+      }
+
       setTimeout(() => {
         if (!recognition) {
           recognition.start();
-          console.log("speech starting again");
+          setNumSpeechRestarts(numSpeechRestarts => numSpeechRestarts + 1);
         }
       }, 400);
     }
@@ -127,7 +130,6 @@ export default function Form() {
       console.log('Error occurred in recognition: ' + event.error);
       setTimeout(() => {
         recognition.start();
-        console.log("speech starting again");
       }, 400);
     }
 
@@ -135,9 +137,7 @@ export default function Form() {
 
   useEffect(() => {
     proVid.current.playbackRate = proRate / 100;
-    console.log("updating proVid playback: ", proVid.current.playbackRate);
   }, [proRate])
-
 
   const processSpeech = (comm) => {
     switch(comm) {
@@ -159,14 +159,12 @@ export default function Form() {
         debounce(speedUpVideo(), 300);
         break;
       default:
-        console.log("unrecognized command");
         break;  
     }
   }
 
   const proRateChange = (e) => {
     let rate = e.target.value;
-    //proVid.current.playbackRate = rate / 100;
     setProRate(rate => parseInt(rate));
   }
 
@@ -301,6 +299,7 @@ export default function Form() {
 
   useEffect(() => {
     proVid.current.load();
+    setSeekWidth(0);
   }, [proSelection])
 
   const seekClicked = (e) => {
