@@ -15,6 +15,7 @@ export default function Form() {
   const seekBar = useRef(null);
   const speechContainer = useRef(null);
   const speechText = useRef(null);
+  const videoSpeedText = useRef(null);
 
   const [videoHeight, setVideoHeight] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
@@ -67,7 +68,7 @@ export default function Form() {
     var SpeechGrammarList = window.SpeechGrammarList || webkitSpeechGrammarList;
     var SpeechRecognitionEvent = window.SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
 
-    var commands = [ 'play', 'stop', 'slow down', 'speed up', 'pause', 'start'];
+    var commands = [ 'play', 'stop', 'slow down', 'speed up', 'pause', 'start over', 'restart'];
     var grammar = '#JSGF V1.0; grammar commands; public <command> = ' + commands.join(' | ') + ' ;';
 
     var recognition = new SpeechRecognition();
@@ -96,6 +97,10 @@ export default function Form() {
       let comm = event.results[event.results.length-1][0].transcript.trim().toLowerCase();
       speechText.current.innerText = comm;
 
+      if (speechText.current.classList.contains(styles.fadeOutAnimation)) {
+        speechText.current.classList.remove(styles.fadeOutAnimation);
+      }
+
       setTimeout(() => {
         speechText.current.classList.add(styles.fadeOutAnimation);
       }, 3000);
@@ -111,13 +116,18 @@ export default function Form() {
 
       if (numSpeechRestarts >= SPEECH_END_ITERATIONS) {
         // do not restart speech -- 10 minutes has passed without detection
+        setNumSpeechRestarts(0);
+        console.log("ending speech after 10 minutes");
         return
       }
 
       setTimeout(() => {
         if (!recognition) {
           recognition.start();
+          console.log("restarting speech");
           setNumSpeechRestarts(numSpeechRestarts => numSpeechRestarts + 1);
+        } else {
+          console.log("speech object already found");
         }
       }, 400);
     }
@@ -137,12 +147,21 @@ export default function Form() {
 
   useEffect(() => {
     proVid.current.playbackRate = proRate / 100;
+    videoSpeedText.current.innerText = proVid.current.playbackRate * 100 + "%";
+
+    if (videoSpeedText.current.classList.contains(styles.fadeOutAnimation)) {
+      videoSpeedText.current.classList.remove(styles.fadeOutAnimation);
+    }
+
+    setTimeout(() => {
+      videoSpeedText.current.classList.add(styles.fadeOutAnimation);
+    }, 3000);
+
   }, [proRate])
 
   const processSpeech = (comm) => {
     switch(comm) {
       case('play'):
-      case('start'):
         proVid.current.play();
         break;
       case('pause'):
@@ -151,6 +170,10 @@ export default function Form() {
           proVid.current.pause();
           backtrackVideo();
         }
+        break;
+      case('restart'):
+      case('start over'):
+        proVid.current.currentTime = 0;
         break;
       case('slow down'):
         debounce(slowDownVideo(), 300);
@@ -165,7 +188,7 @@ export default function Form() {
 
   const proRateChange = (e) => {
     let rate = e.target.value;
-    setProRate(rate => parseInt(rate));
+    setProRate(rate);
   }
 
   const slowDownVideo = () => {
@@ -458,6 +481,16 @@ export default function Form() {
       <div className={styles.videoContainer}>
         <div className={styles.screenBlocker}
              onClick={startOrStopVideo}>
+        </div>
+        <div className={styles.videoSpeedText} 
+             ref={videoSpeedText}
+             onAnimationEnd={() => 
+                {
+                  videoSpeedText.current.classList.remove(styles.fadeOutAnimation);
+                  videoSpeedText.current.innerText = '';
+                }
+              }
+             >
         </div>
         <div className={styles.webcamContainer}
              style={{
