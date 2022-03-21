@@ -1,7 +1,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Webcam from 'react-webcam';
-import styles from './Form.module.css'
+import { Camera, CameraOptions } from '@mediapipe/camera_utils';
+import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
+import styles from './Form.module.css';
 
 export default function Form() {
 
@@ -10,6 +12,8 @@ export default function Form() {
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
 
   const proVid = useRef(null);
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
   const progressBar = useRef(null);
   const pauseBar = useRef(null);
   const seekBar = useRef(null);
@@ -18,6 +22,7 @@ export default function Form() {
   const videoSpeedText = useRef(null);
 
   const [videoHeight, setVideoHeight] = useState(0);
+  const [videoWidth, setVideoWidth] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
@@ -37,7 +42,8 @@ export default function Form() {
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
     setTimeout(() => {
-      setVideoHeight(proVid.current.scrollHeight)
+      setVideoHeight(proVid.current.scrollHeight);
+      setVideoWidth(proVid.current.offsetWidth);
     }, 2000);
 
     proVid.current.defaultPlaybackRate = 0.5;
@@ -46,6 +52,7 @@ export default function Form() {
     // add listener to change the video height on resize
     window.addEventListener('resize', ()=> {
       setVideoHeight(proVid.current.scrollHeight);
+      setVideoWidth(proVid.current.offsetWidth);
     })
 
     proVid.current.addEventListener('ended', () => {
@@ -142,6 +149,52 @@ export default function Form() {
         recognition.start();
       }, 400);
     }
+
+    // code for selfie segmentation
+    const canvasCtx = canvasRef.current.getContext('2d');
+
+    function onResults(results) {
+      canvasCtx.save();
+
+      /*
+      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.drawImage(results.segmentationMask, 0, 0,
+        canvasRef.current.width, canvasRef.current.height);
+      */
+       
+      /*
+      // Only overwrite existing pixels.
+      canvasCtx.globalCompositeOperation = 'source-in';
+      canvasCtx.fillStyle = '#00FF00';
+      canvasCtx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);*/
+
+      // Only overwrite missing pixels.
+      canvasCtx.globalCompositeOperation = 'destination-atop';
+      canvasCtx.drawImage(
+          results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+
+      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.globalCompositeOperation = 'destination-in';
+      canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.restore();
+    }
+
+    const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+    }});
+    selfieSegmentation.setOptions({
+      modelSelection: 1,
+    });
+    selfieSegmentation.onResults(onResults);
+
+    const camera = new Camera(webcamRef.current.video, {
+      onFrame: async () => {
+        await selfieSegmentation.send({image: webcamRef.current.video});
+      }
+    });
+    camera.start();
+    // end code for selfie segmentation
 
   }, [])
 
@@ -498,6 +551,7 @@ export default function Form() {
                 transform: 'scaleX('+camOrientation+')',
                }}>
           <Webcam 
+              ref={webcamRef}
               audio={false}
               height={videoHeight}
               videoConstraints={{facingMode: "user"}}
@@ -506,6 +560,12 @@ export default function Form() {
                 console.log('unable to connect to user media (camera)', e)
               }}
           />
+          <canvas 
+            ref={canvasRef}
+            width={videoWidth}
+            height={videoHeight}
+          >  
+          </canvas>
         </div>
         <video ref={proVid} 
                muted 

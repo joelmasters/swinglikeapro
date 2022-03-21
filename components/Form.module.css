@@ -157,6 +157,7 @@
   text-align: left;
   padding: 5px;
   font-size: 2.0em;
+  opacity: 0.8;
 } 
 
 .fadeOutAnimation {
@@ -165,7 +166,7 @@
 
 @keyframes fadeout {
   0% {
-    opacity: 1.0;
+    opacity: 0.8;
   }
   100% {
     opacity: 0.0;
@@ -174,10 +175,11 @@
 
 .videoSpeedText {
   font-size: 4.0em;
-  color: orange;
+  color: white;
   position: absolute;
   right: 0px;
   top: 0px;
   z-index: 1000;
+  opacity: 0.8;
 }
 
