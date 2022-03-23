@@ -152,57 +152,6 @@ export default function Form() {
       }, 400);
     }
 
-    // code for selfie segmentation
-    const canvasCtx = canvasRef.current.getContext('2d');
-
-    function onResults(results) {
-      canvasCtx.save();
-
-      /*
-      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.drawImage(results.segmentationMask, 0, 0,
-        canvasRef.current.width, canvasRef.current.height);
-      */
-       
-      /*
-      // Only overwrite existing pixels.
-      canvasCtx.globalCompositeOperation = 'source-in';
-      canvasCtx.fillStyle = '#00FF00';
-      canvasCtx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);*/
-
-      // Only overwrite missing pixels.
-      canvasCtx.globalCompositeOperation = 'destination-atop';
-      canvasCtx.drawImage(
-          results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-
-      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.globalCompositeOperation = 'destination-in';
-      canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.restore();
-    }
-
-    const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-    }});
-    selfieSegmentation.setOptions({
-      modelSelection: 1,
-    });
-    selfieSegmentation.onResults(onResults);
-
-    var sendCounter = 0;
-    const camera = new Camera(webcamRef.current.video, {
-      onFrame: async () => {
-        if (sendCounter === 1) {
-          setWebcamLoaded(true);
-        }
-        await selfieSegmentation.send({image: webcamRef.current.video});
-        sendCounter++;
-      }
-    });
-    camera.start();
-    // end code for selfie segmentation
-
   }, [])
 
   useEffect(() => {
@@ -218,6 +167,45 @@ export default function Form() {
     }, 3000);
 
   }, [proRate])
+
+  const loadSegmentation = () => {
+      // code for selfie segmentation
+      const canvasCtx = canvasRef.current.getContext('2d');
+
+      function onResults(results) {
+        canvasCtx.save();
+        // Only overwrite missing pixels.
+        canvasCtx.globalCompositeOperation = 'destination-atop';
+        //canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.globalCompositeOperation = 'destination-in';
+        canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.restore();
+      }
+  
+      const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+      }});
+      selfieSegmentation.setOptions({
+        modelSelection: 1,
+      });
+      selfieSegmentation.onResults(onResults);
+  
+      var sendCounter = 0;
+      const camera = new Camera(webcamRef.current.video, {
+        onFrame: async () => {
+          if (sendCounter === 1) {
+            console.log("segmentation started");
+            setWebcamLoaded(true);
+          }
+          await selfieSegmentation.send({image: webcamRef.current.video});
+          sendCounter++;
+        }
+      });
+      camera.start();
+      // end code for selfie segmentation
+  }
 
   const processSpeech = (comm) => {
     switch(comm) {
@@ -575,11 +563,11 @@ export default function Form() {
               audio={false}
               height={videoHeight}
               videoConstraints={{facingMode: "user"}}
-              onUserMedia={() => {console.log('connected to user media')}}
+              onUserMedia={() => {console.log('connected to user media'); loadSegmentation(); }}
               onUserMediaError={(e) => {
-                console.log('unable to connect to user media (camera)', e)
+                console.log('unable to connect to user media (camera)', e);
               }}
-          />
+            />
           <canvas 
             ref={canvasRef}
             width={videoWidth}
