@@ -1,6 +1,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Webcam from 'react-webcam';
+import Spinner from 'react-bootstrap/Spinner';
 import { Camera, CameraOptions } from '@mediapipe/camera_utils';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import styles from './Form.module.css';
@@ -38,6 +39,7 @@ export default function Form() {
   const [inDelayTime, setInDelayTime] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [numSpeechRestarts, setNumSpeechRestarts] = useState(0);
+  const [webcamLoaded, setWebcamLoaded] = useState(false);
   
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -188,9 +190,14 @@ export default function Form() {
     });
     selfieSegmentation.onResults(onResults);
 
+    var sendCounter = 0;
     const camera = new Camera(webcamRef.current.video, {
       onFrame: async () => {
+        if (sendCounter === 1) {
+          setWebcamLoaded(true);
+        }
         await selfieSegmentation.send({image: webcamRef.current.video});
+        sendCounter++;
       }
     });
     camera.start();
@@ -532,6 +539,19 @@ export default function Form() {
       </table>
       </div>
       <div className={styles.videoContainer}>
+
+        {webcamLoaded == true ? '' :
+          <div role="status" className={styles.loadingSpinner}>
+            <Spinner
+              as="span"
+              animation="grow"
+              size="sm"
+              role="status"
+              aria-hidden="true"
+            />
+            &nbsp;<span>Loading video...</span>
+          </div>
+        }
         <div className={styles.screenBlocker}
              onClick={startOrStopVideo}>
         </div>
