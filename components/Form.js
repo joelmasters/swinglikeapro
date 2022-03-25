@@ -78,6 +78,8 @@ export default function Form() {
     })
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return // required for FireFox -- speech API does not work
+
     //var SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
     var SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
 
