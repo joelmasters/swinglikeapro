@@ -44,13 +44,17 @@ export default function Form() {
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
     setTimeout(() => {
-      setVideoHeight(proVid.current.scrollHeight);
-      setVideoWidth(proVid.current.offsetWidth);
+      if (proVid.current) {
+        setVideoHeight(proVid.current.scrollHeight);
+        setVideoWidth(proVid.current.offsetWidth);
+      }
+      
     }, 2000);
 
-    proVid.current.defaultPlaybackRate = 0.5;
+    if (proVid.current) {
+      proVid.current.defaultPlaybackRate = 0.5;
+    }
     
-
     // add listener to change the video height on resize
     window.addEventListener('resize', ()=> {
       setVideoHeight(proVid.current.scrollHeight);
@@ -73,19 +77,19 @@ export default function Form() {
       }, PAUSE_TIME * proVid.current.playbackRate)
     })
 
-    var SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
-    var SpeechGrammarList = window.SpeechGrammarList || webkitSpeechGrammarList;
-    var SpeechRecognitionEvent = window.SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    //var SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+    var SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
 
     var commands = [ 'play', 'stop', 'slow down', 'speed up', 'pause', 'start over', 'restart'];
     var grammar = '#JSGF V1.0; grammar commands; public <command> = ' + commands.join(' | ') + ' ;';
 
     var recognition = new SpeechRecognition();
-    var speechRecognitionList = new SpeechGrammarList();
+    //var speechRecognitionList = new SpeechGrammarList();
 
-    speechRecognitionList.addFromString(grammar, 1);
+    //speechRecognitionList.addFromString(grammar, 1);
 
-    recognition.grammars = speechRecognitionList;
+    //recognition.grammars = speechRecognitionList;
     recognition.continuous = true;
     recognition.lang = 'en-US';
     recognition.interimResults = true;
@@ -566,6 +570,7 @@ export default function Form() {
               onUserMedia={() => {console.log('connected to user media'); loadSegmentation(); }}
               onUserMediaError={(e) => {
                 console.log('unable to connect to user media (camera)', e);
+                setWebcamLoaded(true);
               }}
             />
           <canvas 
