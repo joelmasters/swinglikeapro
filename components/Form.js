@@ -1,9 +1,12 @@
 
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/router';
 import Webcam from 'react-webcam';
 import Spinner from 'react-bootstrap/Spinner';
 import { Camera, CameraOptions } from '@mediapipe/camera_utils';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
+import { Pose } from '@mediapipe/pose';
+import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
 
 export default function Form() {
@@ -12,9 +15,13 @@ export default function Form() {
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
 
+  const router = useRouter();
+
   const proVid = useRef(null);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  //const landmarkCanvasRef = useRef(null);
+  //const landmarkGridContainerRef = useRef(null);
   const progressBar = useRef(null);
   const pauseBar = useRef(null);
   const seekBar = useRef(null);
@@ -24,6 +31,8 @@ export default function Form() {
 
   const [videoHeight, setVideoHeight] = useState(0);
   const [videoWidth, setVideoWidth] = useState(0);
+  const [canvasHeight, setCanvasHeight] = useState(0);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
@@ -36,19 +45,28 @@ export default function Form() {
   const [numberOfSteps, setNumberOfSteps] = useState(7);
   const [runningAnimation, setRunningAnimation] = useState(undefined);
   const [seekWidth, setSeekWidth] = useState(0);
-  const [inDelayTime, setInDelayTime] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [numSpeechRestarts, setNumSpeechRestarts] = useState(0);
   const [webcamLoaded, setWebcamLoaded] = useState(false);
-  
+  const [webcamActive, setWebcamActive] = useState(false);
+  const [loadingText, setLoadingText] = useState("Loading Video...");
+  const resultsRecorded = useRef([]);
+  const isPlayingBack = useRef(false);
+  const [inPlayBack, setInPlayBack] = useState(false);
+  const videoPlayStartTime = useRef(undefined);
+  const resultsStartTime = useRef(undefined);
+  const [inPauseTime, setInPauseTime] = useState(false);
+  const isPausing = useRef(false);
+
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
+
     setTimeout(() => {
       if (proVid.current) {
         setVideoHeight(proVid.current.scrollHeight);
         setVideoWidth(proVid.current.offsetWidth);
+        //proVid.current.play();
       }
-      
     }, 2000);
 
     if (proVid.current) {
@@ -61,20 +79,10 @@ export default function Form() {
       setVideoWidth(proVid.current.offsetWidth);
     })
 
+
+
     proVid.current.addEventListener('ended', () => {
-      setInDelayTime(true);
-      pauseBar.current.animate([
-        {transform: 'translateX(-100%)'},
-        {transform: 'translateX(0%)'}
-      ], {
-        duration: PAUSE_TIME * proVid.current.playbackRate,
-        iterations: 1
-      });
-      setTimeout(() => {
-        proVid.current.currentTime = 0;
-        proVid.current.play();
-        setInDelayTime(false);
-      }, PAUSE_TIME * proVid.current.playbackRate)
+      handleVideoEnd();
     })
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -157,7 +165,6 @@ export default function Form() {
         recognition.start();
       }, 400);
     }
-
   }, [])
 
   useEffect(() => {
@@ -175,6 +182,7 @@ export default function Form() {
   }, [proRate])
 
   const loadSegmentation = () => {
+      /*
       // code for selfie segmentation
       const canvasCtx = canvasRef.current.getContext('2d');
 
@@ -182,7 +190,6 @@ export default function Form() {
         canvasCtx.save();
         // Only overwrite missing pixels.
         canvasCtx.globalCompositeOperation = 'destination-atop';
-        //canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.globalCompositeOperation = 'destination-in';
@@ -210,8 +217,178 @@ export default function Form() {
         }
       });
       camera.start();
+      
       // end code for selfie segmentation
+      */
+
+      //const landmarkContainer = landmarkGridContainerRef.current;
+      //const grid = new LandmarkGrid(landmarkContainer);
+      const canvasCtx = canvasRef.current.getContext('2d');
+      //const lmCtx = landmarkCanvasRef.current.getContext('2d');
+      let counter = 0;
+
+      proVid.current.addEventListener('play', () => {
+        //lmCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
+        videoPlayStartTime.current = new Date();
+        //console.log("video play time: ", videoPlayStartTime.current);
+      });
+
+      function onResults(results) {
+        if (!results.poseLandmarks) {
+          //grid.updateLandmarks([]);
+          return;
+        }
+        if (isPlayingBack.current === true) return;
+      
+        canvasCtx.save();
+        // Only overwrite missing pixels.
+        canvasCtx.globalCompositeOperation = 'destination-atop';
+        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.globalCompositeOperation = 'destination-in';
+        canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        //canvasCtx.restore();
+        
+        canvasCtx.globalCompositeOperation = 'source-over';
+        //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
+        //drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
+        canvasCtx.restore();
+        
+        //lmCtx.globalCompositeOperation = 'source-over';
+        /*if (counter % 50 === 0) {
+          lmCtx.save();
+          drawLandmarks(lmCtx, results.poseLandmarks,{color: '#FF0000', opacity: 0.25, lineWidth: 2});
+          lmCtx.restore();
+        }*/
+
+        if (!proVid.current.paused) {
+          if (resultsRecorded.current === []) {
+            resultsStartTime.current = new Date();
+          }
+          //console.log("adding results");
+          resultsRecorded.current.push(results);
+        } 
+
+        counter++;
+
+        // TODO: match up frames with proVideo -- offset delay or something? Is this affected by CPU speed?
+        // add in pause time for resetting back to start with live camera
+
+      
+        //grid.updateLandmarks(results.poseWorldLandmarks);
+      }
+      
+      const pose = new Pose({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+      }});
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: true,
+        smoothSegmentation: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      pose.onResults(onResults);
+      
+      var sendCounter = 0;
+      const camera = new Camera(webcamRef.current.video, {
+        onFrame: async () => {
+          if (sendCounter === 1) {
+            console.log("segmentation started");
+            setWebcamLoaded(true);
+          }
+          await pose.send({image: webcamRef.current.video});
+          if (sendCounter > 1) return
+          sendCounter++;
+        }
+      });
+      camera.start();
+
   }
+
+  const handleVideoEnd = () => {
+    
+    if (isPlayingBack.current == true) {
+      setInPlayBack(false);
+      isPlayingBack.current = false;
+      setInPauseTime(true);
+      isPausing.current = true;
+      animatePauseBar();
+    } else {
+      isPlayingBack.current = true;
+      setInPlayBack(true);
+      playbackRecording();
+    }
+  }
+
+  const playbackRecording = () => {
+
+    // this function plays back what was recorded from the previous throw
+    let playbackTimer = undefined;
+    let playbackCounter = 0;
+    //const playbackFrameRate = 1000 / (proVid.current.playbackRate * 30); // ms for 1 frame every 30 sec
+
+    // duration / playback rate == adjusted time (5.2 seconds)
+    // resultsRecorded.length = # of frames
+    // # of frames / number of seconds ==> frames/second
+    // invert that for seconds/frame * 1000
+
+    const playbackFrameRate = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
+    const canvasCtx = canvasRef.current.getContext('2d');
+
+    // set the video time back to zero, set the playrate to 1.0 (~30fps), and play the video
+    proVid.current.currentTime = 0;
+    //proVid.current.playbackRate = 30/29.97;
+    proVid.current.play();
+    
+    // play back the previous recorded form
+    if (!playbackTimer) {
+
+      // TODO: remove first X number of frames corresponding to the delay
+      
+      playbackTimer = setInterval(() => {
+        if (playbackCounter >= resultsRecorded.current.length || isPlayingBack.current === false) {
+          console.log("exiting playback");
+          resultsRecorded.current = [];
+          clearInterval(playbackTimer);
+          return
+        }
+
+        canvasCtx.save();
+        canvasCtx.globalCompositeOperation = 'destination-atop';
+        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(resultsRecorded.current[playbackCounter].image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.globalCompositeOperation = 'destination-in';
+        canvasCtx.drawImage(resultsRecorded.current[playbackCounter].segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.restore();
+        
+        playbackCounter++;
+
+      }, playbackFrameRate)
+    }  
+  }
+
+  const animatePauseBar = () => {
+
+    proVid.current.currentTime = 0;
+
+    pauseBar.current.animate([
+      {transform: 'translateX(-100%)'},
+      {transform: 'translateX(0%)'}
+    ], {
+      duration: PAUSE_TIME * proVid.current.playbackRate,
+      iterations: 1
+    });
+
+    setTimeout(() => {
+      if (proVid.current) {
+        //proVid.current.playbackRate = proRate / 100;
+        proVid.current.play();
+      }
+    }, PAUSE_TIME * proVid.current.playbackRate)
+  }
+
 
   const processSpeech = (comm) => {
     switch(comm) {
@@ -417,6 +594,11 @@ export default function Form() {
 
   return (
     <div className={styles.container}>
+      <div className={styles.instructionsContainer}>
+        This app is designed for use on a large screen, i.e. laptop or computer with webcam. <br />
+        Voice commands include: Play, Pause, Stop, Speed Up, Slow Down, Restart, and Start Over. <br />
+        Please send feedback to: <a href="mailto: joelmasters@gmail.com">joelmasters@gmail.com</a>
+      </div>
       <div className={styles.optionContainer}>
         <select name="pro-select" 
                 id="pro-select" 
@@ -533,7 +715,6 @@ export default function Form() {
       </table>
       </div>
       <div className={styles.videoContainer}>
-
         {webcamLoaded == true ? '' :
           <div role="status" className={styles.loadingSpinner}>
             <Spinner
@@ -543,11 +724,14 @@ export default function Form() {
               role="status"
               aria-hidden="true"
             />
-            &nbsp;<span>Loading video...</span>
+            &nbsp;<span>{loadingText}</span>
           </div>
         }
         <div className={styles.screenBlocker}
              onClick={startOrStopVideo}>
+        </div>
+        <div className={styles.playbackText}>
+          { inPlayBack ? 'Playback' : '' }
         </div>
         <div className={styles.videoSpeedText} 
              ref={videoSpeedText}
@@ -565,22 +749,40 @@ export default function Form() {
                 transform: 'scaleX('+camOrientation+')',
                }}>
           <Webcam 
+              className={styles.webcam}
               ref={webcamRef}
               audio={false}
               height={videoHeight}
               videoConstraints={{facingMode: "user"}}
-              onUserMedia={() => {console.log('connected to user media'); loadSegmentation(); }}
+              onUserMedia={() => {
+                console.log('connected to user media'); 
+                loadSegmentation(); 
+                setWebcamActive(true);
+                setLoadingText("Loading segmentation...");
+              }}
               onUserMediaError={(e) => {
                 console.log('unable to connect to user media (camera)', e);
                 setWebcamLoaded(true);
               }}
             />
           <canvas 
+            className={styles.outputCanvas}
             ref={canvasRef}
             width={videoWidth}
-            height={videoHeight}
-          >  
+            height={videoHeight}>  
           </canvas>
+          {/*<canvas
+            className={styles.outputCanvas}
+            ref={landmarkCanvasRef}
+            width={videoWidth}
+            height={videoHeight}>
+          </canvas>*/}
+          {/*<div 
+            className={styles.gridContainer}
+            ref={landmarkGridContainerRef}
+            width={videoWidth}
+            height={videoHeight}
+          ></div>*/}
         </div>
         <video ref={proVid} 
                muted 
@@ -607,7 +809,7 @@ export default function Form() {
         </div>
         <div 
             className={styles.countDownContainer}
-            active={inDelayTime ? 1 : 0}>
+            active={inPauseTime ? 1 : 0}>
           <div ref={pauseBar}
               className={styles.countDownBar}
             >
@@ -631,6 +833,9 @@ export default function Form() {
                   >
               </div>
             </div>
+          </div>
+          <div className={styles.cameraIconContainer} active={webcamActive ? "true" : "false"}>
+            {webcamActive ? <i className="bi bi-camera-video-fill"></i> : <i className="bi bi-camera-video"></i>}
           </div>
         </div>
         <div className={styles.speechContainer} ref={speechContainer}>

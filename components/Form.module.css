@@ -1,6 +1,9 @@
 .container {
   text-align: center;
 }
+.instructionsContainer {
+  margin-top: 10px;
+}
 .optionContainer {
   margin-top: 10px;
 }
@@ -44,6 +47,11 @@
   width: 100vw;
   position: absolute;
   bottom: 0px;
+  left: 0px;
+}
+.outputCanvas {
+  position: absolute;
+  top: 0px;
   left: 0px;
 }
 .videoControlButtonContainer {
@@ -160,6 +168,22 @@
   opacity: 0.8;
   overflow: hidden;
 } 
+.cameraIconContainer {
+  position: relative;
+  width: 50px;
+  height: 100%;
+  height: 60px;
+  text-align: center;
+  font-size: 1.4em;
+  opacity: 1.0;
+  padding: 5px;
+}
+.cameraIconContainer[active="true"] {
+  color: red;
+}
+.cameraIconContainer[active="false"] {
+  color: gray;
+}
 
 .fadeOutAnimation {
   animation: fadeout 1s forwards;
@@ -189,5 +213,31 @@
   left: 50%;
   transform: translate(-50%, -50%);
   color: orange;
+}
+.gridContainer {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+}
+.playbackText {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translate(-50%, 0%);
+  color: white;
+  font-size: 1.5em;
+  height: 30px;
+  width: 100px;
+  text-align: center;
+  z-index: 1000;
+  animation: blinker 1s step-start infinite;
+}
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+.webcam {
+  visibility: hidden;
 }
 
