@@ -8,6 +8,7 @@ import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import { Pose } from '@mediapipe/pose';
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
+import { poseDataEagle } from './data/poseDataEagle.js';
 
 export default function Form() {
 
@@ -57,6 +58,7 @@ export default function Form() {
   const resultsStartTime = useRef(undefined);
   const [inPauseTime, setInPauseTime] = useState(false);
   const isPausing = useRef(false);
+  const [focusArea, setFocusArea] = useState('');
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -314,6 +316,7 @@ export default function Form() {
       isPlayingBack.current = false;
       setInPauseTime(true);
       isPausing.current = true;
+      setFocusArea('');
       animatePauseBar();
     } else {
       isPlayingBack.current = true;
@@ -334,12 +337,59 @@ export default function Form() {
     // # of frames / number of seconds ==> frames/second
     // invert that for seconds/frame * 1000
 
-    const playbackFrameRate = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
+    const playbackFrameRateTime = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
+    const playbackFPS = 1 / (playbackFrameRateTime / 1000);
     const canvasCtx = canvasRef.current.getContext('2d');
 
-    // set the video time back to zero, set the playrate to 1.0 (~30fps), and play the video
+    //console.log("poseDataEagle");
+    //console.log(poseDataEagle);
+
+    const numProPoseFrames = poseDataEagle.length;
+    const proVidFPS = numProPoseFrames / proVid.current.duration;
+    const proVidFrameRateTime = (1 / proVidFPS) * 1000; // time in between frames, 1 / FPS
+
+    // say playbackFPS = 42
+    // proVidFPS = 30 
+    // playbackRatio = 42/30 = 1.4;
+    // playbackFrame[0] = proVidFrame[0]
+    // playbackFrame[1] = (proVidFrame[1] - proVidFrame[0])/playbackRatio + proVidFrame[0]
+    // playbackFrame[2] = proVidFrame[2/1.4] = proVidFrame[1.43]
+    // proVidFrame[1] = playbackFrame[1*1.4] = playbackFrame[1.4];
+
+    //  |------- * --|
+    //  2            3
+
+    //console.log("playbackFPS: ", playbackFPS);
+    //console.log("proVidFPS: ", proVidFPS);
+
+    const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
+    let greatestDiffLandmark = findGreatestDifference(poseDataEagle, resultsRecorded.current, playbackRatio);
+
+    const LANDMARK_NAMES = [
+      'Left Shoulder',
+      'Right Shoulder',
+      'Left Elbow',
+      'Right Elbow',
+      'Left Wrist',
+      'Right Wrist',
+      'Left Hip',
+      'Right Hip',
+      'Left Knee',
+      'Right Knee',
+      'Left Ankle',
+      'Right Ankle',
+    ]
+
+    if (greatestDiffLandmark === -1) {
+      console.log("no diff landmark found");
+    } else {
+      let greatestDiffLandmarkName = LANDMARK_NAMES[greatestDiffLandmark];
+      setFocusArea(greatestDiffLandmarkName);
+      console.log("greatestDiffLandmarkName: ", greatestDiffLandmarkName);
+    }
+
+    // set the video time back to zero
     proVid.current.currentTime = 0;
-    //proVid.current.playbackRate = 30/29.97;
     proVid.current.play();
     
     // play back the previous recorded form
@@ -365,8 +415,88 @@ export default function Form() {
         
         playbackCounter++;
 
-      }, playbackFrameRate)
+      }, playbackFrameRateTime)
     }  
+  }
+
+  const findGreatestDifference = (proResults, youResults, ratio) => {
+
+    /*  Pose landmarks:
+           0-10 face - X
+        0: 11: left_shoudler 
+        1: 12: right_shoulder 
+        2: 13: left_elbow 
+        3: 14: right_elbow
+        4: 15: left_wrist
+        5: 16: right_wrist
+           17: left_pinky - X
+           18: right_pinky - X
+           19: left_index - X
+           20: right_index - X
+           21: left_thumb - X
+           22: right_thumb - X
+        6: 23: left_hip
+        7: 24: right_hip
+        8: 25: left_knee
+        9: 26: right_knee
+        10: 27: left_ankle
+        11: 28: right_ankle
+            29: left_heel - X
+            30: right_heel - X
+            31: left_foot_index - X
+            32: right_foot_index - X
+        */
+
+    let youResultsFiltered = youResults.map(x => {
+        let first = x.poseLandmarks.slice(11, 17);
+        let second = x.poseLandmarks.slice(23, 29);
+
+        let returns = [...first, ...second];
+
+        return returns 
+      });
+
+    //console.log("youResultsFiltered: ");
+    //console.log(youResultsFiltered);
+
+    let cumulativeErrors = [];
+
+    
+
+    //console.log("Ratio: ", ratio);
+
+    if (ratio >= 1) {
+      for (let i = 0; i < proResults[0].length; i++) {
+        cumulativeErrors.push([0]);
+      }
+
+      // more frames recorded from camera than video
+      for (let i = 0; i < proResults.length; i++) { // frame number
+        for (let j = 0; j < proResults[i].length; j++) { // landmark number
+          cumulativeErrors[j] = parseFloat(cumulativeErrors[j]) + parseFloat(proResults[i][j].x - (youResultsFiltered[Math.ceil(i*ratio)][j].x - youResultsFiltered[Math.floor(i*ratio)][j].x)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].x);
+          cumulativeErrors[j] = parseFloat(cumulativeErrors[j]) + parseFloat(proResults[i][j].y - (youResultsFiltered[Math.ceil(i*ratio)][j].y - youResultsFiltered[Math.floor(i*ratio)][j].y)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].y);
+        }  
+      }
+    }
+
+    
+    //console.log(cumulativeErrors);
+
+    let maxError = cumulativeErrors[0];
+    let maxErrorIdx = 0;
+
+    for (let i = 1; i < cumulativeErrors.length; i++) {
+      if (cumulativeErrors[i] > maxError) {
+        maxError = cumulativeErrors[i];
+        maxErrorIdx = i;
+      }
+    }
+
+    //console.log("maxError: ", maxError);
+    //console.log("maxErrorIdx: ", maxErrorIdx);
+
+    // TODO: This is always coming out as left ankle
+    return maxErrorIdx; // landmark with greatest difference
   }
 
   const animatePauseBar = () => {
@@ -653,7 +783,7 @@ export default function Form() {
               <label htmlFor="pro-rate">{proRate}%</label>
             </td>
           </tr>
-          <tr>
+          {/*<tr>
             <td className={styles.optionBlockLeft}>
               Step Time
             </td>
@@ -695,7 +825,7 @@ export default function Form() {
                     onChange={changeToStepped}
                     checked={stepped} />
             </td>
-          </tr>
+          </tr>*/}
           <tr>
             <td
                 className={styles.buttonCell}
@@ -732,6 +862,9 @@ export default function Form() {
         </div>
         <div className={styles.playbackText}>
           { inPlayBack ? 'Playback' : '' }
+        </div>
+        <div className={styles.focusAreaText}>
+          {''/*focusArea*/}
         </div>
         <div className={styles.videoSpeedText} 
              ref={videoSpeedText}
