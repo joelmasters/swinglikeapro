@@ -8,7 +8,8 @@ import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import { Pose } from '@mediapipe/pose';
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
-import { poseDataEagle } from './data/poseDataEagle.js';
+import { poseDataEagle, poseDataEagleMirrored } from './data/poseDataEagle.js';
+import { poseDataRicky, poseDataRickyMirrored } from './data/poseDataRicky.js';
 
 export default function Form() {
 
@@ -35,8 +36,10 @@ export default function Form() {
   const [canvasHeight, setCanvasHeight] = useState(0);
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
+  const proData = useRef([...poseDataEagle]);
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
+  const proOrient = useState(-1);
   const [camOpacity, setCamOpacity] = useState(100);
   const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(50);
@@ -344,7 +347,9 @@ export default function Form() {
     //console.log("poseDataEagle");
     //console.log(poseDataEagle);
 
-    const numProPoseFrames = poseDataEagle.length;
+
+
+    const numProPoseFrames = proData.current.length;
     const proVidFPS = numProPoseFrames / proVid.current.duration * proVid.current.playbackRate;
     const proVidFrameRateTime = (1 / proVidFPS) * 1000; // time in between frames, 1 / FPS
 
@@ -363,7 +368,7 @@ export default function Form() {
     //console.log("proVidFPS: ", proVidFPS);
 
     const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
-    let greatestDiffLandmark = findGreatestDifference(poseDataEagle, resultsRecorded.current, playbackRatio);
+    let greatestDiffLandmark = findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
 
     const LANDMARK_NAMES = [
       'Left Shoulder',
@@ -423,11 +428,11 @@ export default function Form() {
     }
     if (!proPlaybackTimer) {
 
-      let squashedCurrentResults = squashResults(poseDataEagle, resultsRecorded.current, playbackRatio);
+      let squashedCurrentResults = squashResults(proData.current, resultsRecorded.current, playbackRatio);
       const BOX_PADDING = 10;
 
       proPlaybackTimer = setInterval(() => {
-        if (proPlaybackCounter >= poseDataEagle.length || isPlayingBack.current === false) {
+        if (proPlaybackCounter >= proData.current.length || isPlayingBack.current === false) {
           clearInterval(proPlaybackTimer);
           landmarkCtx.globalCompositeOperation = 'destination-atop';
           landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
@@ -440,10 +445,10 @@ export default function Form() {
         //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
         //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
 
-        let minX = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x);
-        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x);
-        let minY = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y);
-        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y);
+        let minX = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, proData.current[proPlaybackCounter][greatestDiffLandmark].x);
+        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, proData.current[proPlaybackCounter][greatestDiffLandmark].x);
+        let minY = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, proData.current[proPlaybackCounter][greatestDiffLandmark].y);
+        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, proData.current[proPlaybackCounter][greatestDiffLandmark].y);
 
         let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
         let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
@@ -467,8 +472,8 @@ export default function Form() {
         landmarkCtx.beginPath();
         landmarkCtx.fillStyle = '#FFFF00';
         landmarkCtx.arc(
-              poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-              poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+              proData.current[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+              proData.current[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
               5,
               0,
               2*Math.PI 
@@ -806,7 +811,26 @@ export default function Form() {
   useEffect(() => {
     proVid.current.load();
     setSeekWidth(0);
-  }, [proSelection])
+    switch(proSelection) {
+      case('eagle'):
+        if (proOrientation === -1) {
+          proData.current = [...poseDataEagle];
+        } else {
+          proData.current = [...poseDataEagleMirrored];
+        }
+        break;
+      case('ricky'):
+        if (proOrientation === -1) {
+          proData.current = [...poseDataRicky];
+        } else {
+          proData.current = [...poseDataRickyMirrored];
+        }
+        break;
+      default:
+        proData.current = [...poseDataEagle];
+        break;
+    }
+  }, [proSelection, proOrientation])
 
   const seekClicked = (e) => {
     let offset = seekBar.current.offsetLeft;

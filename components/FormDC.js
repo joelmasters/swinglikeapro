@@ -47,7 +47,7 @@ export default function Form() {
     })
 
     proVid.current.addEventListener('ended', (e) => {
-      if (numRuns.current < 25) {
+      if (numRuns.current < 5) {
         resultsAll.current.push(resultsRecorded.current);
         resultsRecorded.current = [];
         proVid.current.play();
@@ -64,8 +64,10 @@ export default function Form() {
 
             return returns 
           }));
+        
+        let segmentationMasks = resultsAll.current.map(row => row.slice(1).map(x => x.segmentationMask));
 
-        console.log(dataToWrite);
+        //console.log(dataToWrite);
 
         let dataAveraged = [];
         
@@ -141,6 +143,7 @@ export default function Form() {
 
 
         console.log(lmAveragesInverted);
+        console.log(segmentationMasks);
       }})
 
 
@@ -219,9 +222,9 @@ export default function Form() {
                 opacity:proOpacity + '%',
                 transform: 'scaleX(' + proOrientation + ')',
               }}>
-        <source src={"/videos/eagle.webm"}
+        <source src={"/videos/ricky.webm"}
             type="video/webm" />
-        <source src={"/videos/eagle.mp4"}
+        <source src={"/videos/ricky.mp4"}
             type="video/mp4" />
       </video>
       <br />
