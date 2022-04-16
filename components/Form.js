@@ -21,7 +21,7 @@ export default function Form() {
   const proVid = useRef(null);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  //const landmarkCanvasRef = useRef(null);
+  const landmarkCanvasRef = useRef(null);
   //const landmarkGridContainerRef = useRef(null);
   const progressBar = useRef(null);
   const pauseBar = useRef(null);
@@ -345,7 +345,7 @@ export default function Form() {
     //console.log(poseDataEagle);
 
     const numProPoseFrames = poseDataEagle.length;
-    const proVidFPS = numProPoseFrames / proVid.current.duration;
+    const proVidFPS = numProPoseFrames / proVid.current.duration * proVid.current.playbackRate;
     const proVidFrameRateTime = (1 / proVidFPS) * 1000; // time in between frames, 1 / FPS
 
     // say playbackFPS = 42
@@ -385,23 +385,27 @@ export default function Form() {
     } else {
       let greatestDiffLandmarkName = LANDMARK_NAMES[greatestDiffLandmark];
       setFocusArea(greatestDiffLandmarkName);
-      console.log("greatestDiffLandmarkName: ", greatestDiffLandmarkName);
+      //console.log("greatestDiffLandmarkName: ", greatestDiffLandmarkName);
     }
 
     // set the video time back to zero
     proVid.current.currentTime = 0;
     proVid.current.play();
+
+    let proPlaybackTimer = undefined;
+    let proPlaybackCounter = 0;
+
+    const landmarkCtx = landmarkCanvasRef.current.getContext('2d');
     
     // play back the previous recorded form
     if (!playbackTimer) {
-
-      // TODO: remove first X number of frames corresponding to the delay
-      
       playbackTimer = setInterval(() => {
         if (playbackCounter >= resultsRecorded.current.length || isPlayingBack.current === false) {
-          console.log("exiting playback");
+          //console.log("exiting playback");
           resultsRecorded.current = [];
           clearInterval(playbackTimer);
+          canvasCtx.globalCompositeOperation = 'destination-atop';
+          canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           return
         }
 
@@ -416,7 +420,106 @@ export default function Form() {
         playbackCounter++;
 
       }, playbackFrameRateTime)
+    }
+    if (!proPlaybackTimer) {
+
+      let squashedCurrentResults = squashResults(poseDataEagle, resultsRecorded.current, playbackRatio);
+      const BOX_PADDING = 10;
+
+      proPlaybackTimer = setInterval(() => {
+        if (proPlaybackCounter >= poseDataEagle.length || isPlayingBack.current === false) {
+          clearInterval(proPlaybackTimer);
+          landmarkCtx.globalCompositeOperation = 'destination-atop';
+          landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
+          return
+        }
+        landmarkCtx.save();
+        landmarkCtx.globalCompositeOperation = 'destination-atop';
+        landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
+        landmarkCtx.globalCompositeOperation = 'source-over';
+        //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
+        //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
+
+        let minX = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x);
+        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x);
+        let minY = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y);
+        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y);
+
+        let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
+        let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
+        let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
+        let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
+
+        // TODO: Box not showing up
+        landmarkCtx.strokeStyle = '#00FF00';
+        landmarkCtx.lineWidth = 5;
+        landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        landmarkCtx.beginPath();
+        landmarkCtx.fillStyle = '#FF0000';
+        landmarkCtx.arc(
+              squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+              squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+              5,
+              0,
+              2*Math.PI 
+          )
+        landmarkCtx.fill();
+        landmarkCtx.beginPath();
+        landmarkCtx.fillStyle = '#FFFF00';
+        landmarkCtx.arc(
+              poseDataEagle[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+              poseDataEagle[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+              5,
+              0,
+              2*Math.PI 
+          )
+        landmarkCtx.fill();
+
+
+        landmarkCtx.restore();
+
+        proPlaybackCounter++;
+
+      }, proVidFrameRateTime)
     }  
+  }
+
+  const filterResults = (youResults) => {
+    let youResultsFiltered = youResults.map(x => {
+      let first = x.poseLandmarks.slice(11, 17);
+      let second = x.poseLandmarks.slice(23, 29);
+
+      let returns = [...first, ...second];
+
+      return returns 
+    });
+
+    return youResultsFiltered;
+  }
+
+  const squashResults = (proResults, youResults, ratio) => {
+
+    let youResultsFiltered = filterResults(youResults);
+
+    let squashedResults = [];
+
+    if (ratio >= 1) {
+      for (let i = 0; i < proResults.length; i++) { // number of frames
+        squashedResults.push([]);
+      }
+
+      // more frames recorded from camera than video
+      for (let i = 0; i < proResults.length; i++) { // frame number
+        for (let j = 0; j < proResults[i].length; j++) { // landmark number
+          squashedResults[i].push({
+            x: (youResultsFiltered[Math.ceil(i*ratio)][j].x - youResultsFiltered[Math.floor(i*ratio)][j].x)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].x,
+            y: (youResultsFiltered[Math.ceil(i*ratio)][j].y - youResultsFiltered[Math.floor(i*ratio)][j].y)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].y,
+          })
+        }  
+      }
+    }   
+
+    return squashedResults;
   }
 
   const findGreatestDifference = (proResults, youResults, ratio) => {
@@ -447,21 +550,12 @@ export default function Form() {
             32: right_foot_index - X
         */
 
-    let youResultsFiltered = youResults.map(x => {
-        let first = x.poseLandmarks.slice(11, 17);
-        let second = x.poseLandmarks.slice(23, 29);
-
-        let returns = [...first, ...second];
-
-        return returns 
-      });
+    let youResultsFiltered = filterResults(youResults);
 
     //console.log("youResultsFiltered: ");
     //console.log(youResultsFiltered);
 
     let cumulativeErrors = [];
-
-    
 
     //console.log("Ratio: ", ratio);
 
@@ -487,15 +581,43 @@ export default function Form() {
 
     for (let i = 1; i < cumulativeErrors.length; i++) {
       if (cumulativeErrors[i] > maxError) {
+        if (i >= 10) { // this corresponds to the left ankle and ringht ankle, which currently have problems
+          continue;
+        }
         maxError = cumulativeErrors[i];
         maxErrorIdx = i;
       }
     }
+    /*
+    const LANDMARK_NAMES = [
+      'Left Shoulder',
+      'Right Shoulder',
+      'Left Elbow',
+      'Right Elbow',
+      'Left Wrist',
+      'Right Wrist',
+      'Left Hip',
+      'Right Hip',
+      'Left Knee',
+      'Right Knee',
+      'Left Ankle',
+      'Right Ankle',
+    ]
 
-    //console.log("maxError: ", maxError);
-    //console.log("maxErrorIdx: ", maxErrorIdx);
+    let errorsWithNames = cumulativeErrors.map((x, i) => {
+      return [x, LANDMARK_NAMES[i]]
+    });
 
-    // TODO: This is always coming out as left ankle
+    let errorsSorted = errorsWithNames.sort((a,b) => {
+      // sort in descending order
+      return a[0] < b[0] ? 1 : -1
+    });
+    
+
+    //console.log("errorsSorted: ", errorsSorted);
+
+    */
+
     return maxErrorIdx; // landmark with greatest difference
   }
 
@@ -864,7 +986,7 @@ export default function Form() {
           { inPlayBack ? 'Playback' : '' }
         </div>
         <div className={styles.focusAreaText}>
-          {''/*focusArea*/}
+          {focusArea}
         </div>
         <div className={styles.videoSpeedText} 
              ref={videoSpeedText}
@@ -904,12 +1026,12 @@ export default function Form() {
             width={videoWidth}
             height={videoHeight}>  
           </canvas>
-          {/*<canvas
+          <canvas
             className={styles.outputCanvas}
             ref={landmarkCanvasRef}
             width={videoWidth}
             height={videoHeight}>
-          </canvas>*/}
+          </canvas>
           {/*<div 
             className={styles.gridContainer}
             ref={landmarkGridContainerRef}
