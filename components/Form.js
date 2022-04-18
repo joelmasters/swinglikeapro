@@ -10,6 +10,7 @@ import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
 import { poseDataEagle, poseDataEagleMirrored } from './data/poseDataEagle.js';
 import { poseDataRicky, poseDataRickyMirrored } from './data/poseDataRicky.js';
+import helpers from './form-helpers';
 
 export default function Form() {
 
@@ -39,7 +40,6 @@ export default function Form() {
   const proData = useRef([...poseDataEagle]);
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
-  const proOrient = useState(-1);
   const [camOpacity, setCamOpacity] = useState(100);
   const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(50);
@@ -83,8 +83,6 @@ export default function Form() {
       setVideoHeight(proVid.current.scrollHeight);
       setVideoWidth(proVid.current.offsetWidth);
     })
-
-
 
     proVid.current.addEventListener('ended', () => {
       handleVideoEnd();
@@ -133,7 +131,7 @@ export default function Form() {
         speechText.current.classList.add(styles.fadeOutAnimation);
       }, 3000);
 
-      debounce(processSpeech(comm), 3000);
+      helpers.debounce(processSpeech(comm), 3000);
 
       //console.log('Confidence: ' + event.results[0][0].confidence);
       setIsSpeaking(false);
@@ -152,7 +150,6 @@ export default function Form() {
       setTimeout(() => {
         if (!recognition) {
           recognition.start();
-          console.log("restarting speech");
           setNumSpeechRestarts(numSpeechRestarts => numSpeechRestarts + 1);
         } else {
           console.log("speech object already found");
@@ -187,45 +184,6 @@ export default function Form() {
   }, [proRate])
 
   const loadSegmentation = () => {
-      /*
-      // code for selfie segmentation
-      const canvasCtx = canvasRef.current.getContext('2d');
-
-      function onResults(results) {
-        canvasCtx.save();
-        // Only overwrite missing pixels.
-        canvasCtx.globalCompositeOperation = 'destination-atop';
-        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.globalCompositeOperation = 'destination-in';
-        canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.restore();
-      }
-  
-      const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-      }});
-      selfieSegmentation.setOptions({
-        modelSelection: 1,
-      });
-      selfieSegmentation.onResults(onResults);
-  
-      var sendCounter = 0;
-      const camera = new Camera(webcamRef.current.video, {
-        onFrame: async () => {
-          if (sendCounter === 1) {
-            console.log("segmentation started");
-            setWebcamLoaded(true);
-          }
-          await selfieSegmentation.send({image: webcamRef.current.video});
-          sendCounter++;
-        }
-      });
-      camera.start();
-      
-      // end code for selfie segmentation
-      */
-
       //const landmarkContainer = landmarkGridContainerRef.current;
       //const grid = new LandmarkGrid(landmarkContainer);
       const canvasCtx = canvasRef.current.getContext('2d');
@@ -309,7 +267,6 @@ export default function Form() {
         }
       });
       camera.start();
-
   }
 
   const handleVideoEnd = () => {
@@ -344,11 +301,6 @@ export default function Form() {
     const playbackFPS = 1 / (playbackFrameRateTime / 1000);
     const canvasCtx = canvasRef.current.getContext('2d');
 
-    //console.log("poseDataEagle");
-    //console.log(poseDataEagle);
-
-
-
     const numProPoseFrames = proData.current.length;
     const proVidFPS = numProPoseFrames / proVid.current.duration * proVid.current.playbackRate;
     const proVidFrameRateTime = (1 / proVidFPS) * 1000; // time in between frames, 1 / FPS
@@ -361,14 +313,8 @@ export default function Form() {
     // playbackFrame[2] = proVidFrame[2/1.4] = proVidFrame[1.43]
     // proVidFrame[1] = playbackFrame[1*1.4] = playbackFrame[1.4];
 
-    //  |------- * --|
-    //  2            3
-
-    //console.log("playbackFPS: ", playbackFPS);
-    //console.log("proVidFPS: ", proVidFPS);
-
     const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
-    let greatestDiffLandmark = findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+    let greatestDiffLandmark = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
 
     const LANDMARK_NAMES = [
       'Left Shoulder',
@@ -428,7 +374,7 @@ export default function Form() {
     }
     if (!proPlaybackTimer) {
 
-      let squashedCurrentResults = squashResults(proData.current, resultsRecorded.current, playbackRatio);
+      let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
       const BOX_PADDING = 10;
 
       proPlaybackTimer = setInterval(() => {
@@ -479,151 +425,12 @@ export default function Form() {
               2*Math.PI 
           )
         landmarkCtx.fill();
-
-
         landmarkCtx.restore();
 
         proPlaybackCounter++;
 
       }, proVidFrameRateTime)
     }  
-  }
-
-  const filterResults = (youResults) => {
-    let youResultsFiltered = youResults.map(x => {
-      let first = x.poseLandmarks.slice(11, 17);
-      let second = x.poseLandmarks.slice(23, 29);
-
-      let returns = [...first, ...second];
-
-      return returns 
-    });
-
-    return youResultsFiltered;
-  }
-
-  const squashResults = (proResults, youResults, ratio) => {
-
-    let youResultsFiltered = filterResults(youResults);
-
-    let squashedResults = [];
-
-    if (ratio >= 1) {
-      for (let i = 0; i < proResults.length; i++) { // number of frames
-        squashedResults.push([]);
-      }
-
-      // more frames recorded from camera than video
-      for (let i = 0; i < proResults.length; i++) { // frame number
-        for (let j = 0; j < proResults[i].length; j++) { // landmark number
-          squashedResults[i].push({
-            x: (youResultsFiltered[Math.ceil(i*ratio)][j].x - youResultsFiltered[Math.floor(i*ratio)][j].x)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].x,
-            y: (youResultsFiltered[Math.ceil(i*ratio)][j].y - youResultsFiltered[Math.floor(i*ratio)][j].y)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].y,
-          })
-        }  
-      }
-    }   
-
-    return squashedResults;
-  }
-
-  const findGreatestDifference = (proResults, youResults, ratio) => {
-
-    /*  Pose landmarks:
-           0-10 face - X
-        0: 11: left_shoudler 
-        1: 12: right_shoulder 
-        2: 13: left_elbow 
-        3: 14: right_elbow
-        4: 15: left_wrist
-        5: 16: right_wrist
-           17: left_pinky - X
-           18: right_pinky - X
-           19: left_index - X
-           20: right_index - X
-           21: left_thumb - X
-           22: right_thumb - X
-        6: 23: left_hip
-        7: 24: right_hip
-        8: 25: left_knee
-        9: 26: right_knee
-        10: 27: left_ankle
-        11: 28: right_ankle
-            29: left_heel - X
-            30: right_heel - X
-            31: left_foot_index - X
-            32: right_foot_index - X
-        */
-
-    let youResultsFiltered = filterResults(youResults);
-
-    //console.log("youResultsFiltered: ");
-    //console.log(youResultsFiltered);
-
-    let cumulativeErrors = [];
-
-    //console.log("Ratio: ", ratio);
-
-    if (ratio >= 1) {
-      for (let i = 0; i < proResults[0].length; i++) {
-        cumulativeErrors.push([0]);
-      }
-
-      // more frames recorded from camera than video
-      for (let i = 0; i < proResults.length; i++) { // frame number
-        for (let j = 0; j < proResults[i].length; j++) { // landmark number
-          cumulativeErrors[j] = parseFloat(cumulativeErrors[j]) + parseFloat(proResults[i][j].x - (youResultsFiltered[Math.ceil(i*ratio)][j].x - youResultsFiltered[Math.floor(i*ratio)][j].x)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].x);
-          cumulativeErrors[j] = parseFloat(cumulativeErrors[j]) + parseFloat(proResults[i][j].y - (youResultsFiltered[Math.ceil(i*ratio)][j].y - youResultsFiltered[Math.floor(i*ratio)][j].y)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].y);
-        }  
-      }
-    }
-
-    
-    //console.log(cumulativeErrors);
-
-    let maxError = cumulativeErrors[0];
-    let maxErrorIdx = 0;
-
-    for (let i = 1; i < cumulativeErrors.length; i++) {
-      if (cumulativeErrors[i] > maxError) {
-        if (i >= 10) { // this corresponds to the left ankle and ringht ankle, which currently have problems
-          continue;
-        }
-        maxError = cumulativeErrors[i];
-        maxErrorIdx = i;
-      }
-    }
-    /*
-    const LANDMARK_NAMES = [
-      'Left Shoulder',
-      'Right Shoulder',
-      'Left Elbow',
-      'Right Elbow',
-      'Left Wrist',
-      'Right Wrist',
-      'Left Hip',
-      'Right Hip',
-      'Left Knee',
-      'Right Knee',
-      'Left Ankle',
-      'Right Ankle',
-    ]
-
-    let errorsWithNames = cumulativeErrors.map((x, i) => {
-      return [x, LANDMARK_NAMES[i]]
-    });
-
-    let errorsSorted = errorsWithNames.sort((a,b) => {
-      // sort in descending order
-      return a[0] < b[0] ? 1 : -1
-    });
-    
-
-    //console.log("errorsSorted: ", errorsSorted);
-
-    */
-
-    return maxErrorIdx; // landmark with greatest difference
   }
 
   const animatePauseBar = () => {
@@ -664,10 +471,10 @@ export default function Form() {
         proVid.current.currentTime = 0;
         break;
       case('slow down'):
-        debounce(slowDownVideo(), 300);
+        helpers.debounce(slowDownVideo(), 300);
         break;
       case('speed up'):
-        debounce(speedUpVideo(), 300);
+        helpers.debounce(speedUpVideo(), 300);
         break;
       default:
         break;  
@@ -685,19 +492,6 @@ export default function Form() {
     }
   }
 
-  const debounce = (func, timeout = 300) => {
-    let timer;
-    return (...args) => {
-      if (!timer) {
-        func.apply(this, args);
-      }
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = undefined;
-      }, timeout);
-    };
-  }
-
   const speedUpVideo = () => {
     if (proVid.current.playbackRate < 1.0) {
       setProRate(proRate => proRate + 10);
@@ -713,6 +507,7 @@ export default function Form() {
     proVid.current.currentTime = backTime;
   }
 
+  /*
   const changeToStepped = () => {
     if (stepped === true) {
       // stop the timer
@@ -744,6 +539,7 @@ export default function Form() {
     setStepped(true);
   }
 
+  
   const stepTimeChange = (e) => {
     let t = e.target.value;
     setStepTime(t);
@@ -802,7 +598,7 @@ export default function Form() {
     }, stepPauseTime*1000);
 
     setStepTimer(intervalId);  
-  }
+  } */
 
   const proVidSourceChange = (e) => {
     setProSelection(e.target.value);
