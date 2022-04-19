@@ -91,6 +91,7 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
       maxError = cumulativeErrors[i];
       maxErrorIdx = i;
     }
+    //console.log(`${i}: ${cumulativeErrors[i]}`);
   }
   /*
   const LANDMARK_NAMES = [

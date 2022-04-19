@@ -62,6 +62,8 @@ export default function Form() {
   const [inPauseTime, setInPauseTime] = useState(false);
   const isPausing = useRef(false);
   const [focusArea, setFocusArea] = useState('');
+  const [camerasFound, setCamerasFound] = useState(undefined);
+  const [camSelected, setCamSelected] = useState(undefined);
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -73,6 +75,12 @@ export default function Form() {
         //proVid.current.play();
       }
     }, 2000);
+
+    let cams = navigator.mediaDevices.enumerateDevices().then(results => {
+      let filtered = results.filter(device => device.kind == "videoinput");
+      console.log("cameras found: ", filtered);
+      setCamerasFound(filtered);
+    });
 
     if (proVid.current) {
       proVid.current.defaultPlaybackRate = 0.5;
@@ -783,6 +791,19 @@ export default function Form() {
                   onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
             </td>
           </tr>
+          <tr>
+            <td>
+              {camerasFound && camerasFound.length > 1 ? camerasFound.map(
+                (cam, idx) => 
+                  <button key={cam.deviceId || idx} 
+                          className={styles.camButton}
+                          onClick={() => setCamSelected(cam.deviceId)}
+                          >
+                    {"Cam " + (idx + 1).toString()}
+                  </button>
+              ) : '' }
+            </td>
+          </tr>
       </tbody>
       </table>
       </div>
@@ -828,7 +849,7 @@ export default function Form() {
               ref={webcamRef}
               audio={false}
               height={videoHeight}
-              videoConstraints={{facingMode: "user"}}
+              videoConstraints={{facingMode: "user", deviceId: camSelected }}
               onUserMedia={() => {
                 console.log('connected to user media'); 
                 loadSegmentation(); 

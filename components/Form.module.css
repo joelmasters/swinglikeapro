@@ -85,9 +85,6 @@
 .buttonCell {
   text-align: right;
 }
-.buttonFlip {
-  
-}
 .countDownContainer {
   height: 10px;
   width: 100vw;
@@ -251,4 +248,8 @@
   text-align: right;
   z-index: 1000;
 }
+.camButton {
+
+}
+
 
