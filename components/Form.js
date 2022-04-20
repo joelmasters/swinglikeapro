@@ -64,6 +64,7 @@ export default function Form() {
   const [focusArea, setFocusArea] = useState('');
   const [camerasFound, setCamerasFound] = useState(undefined);
   const [camSelected, setCamSelected] = useState(undefined);
+  const shouldUseMediaPipe = useRef(true);
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -78,7 +79,7 @@ export default function Form() {
 
     let cams = navigator.mediaDevices.enumerateDevices().then(results => {
       let filtered = results.filter(device => device.kind == "videoinput");
-      console.log("cameras found: ", filtered);
+      //console.log("cameras found: ", filtered);
       setCamerasFound(filtered);
     });
 
@@ -170,7 +171,7 @@ export default function Form() {
     }
 
     recognition.onerror = function(event) {
-      console.log('Error occurred in recognition: ' + event.error);
+      //console.log('Error occurred in recognition: ' + event.error);
       setTimeout(() => {
         recognition.start();
       }, 400);
@@ -201,6 +202,8 @@ export default function Form() {
       proVid.current.addEventListener('play', () => {
         //lmCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
         videoPlayStartTime.current = new Date();
+        setInPauseTime(false);
+        isPausing.current = false;
         //console.log("video play time: ", videoPlayStartTime.current);
       });
 
@@ -263,19 +266,45 @@ export default function Form() {
       pose.onResults(onResults);
       
       var sendCounter = 0;
+      let watchdogTimer = undefined;
+
       const camera = new Camera(webcamRef.current.video, {
         onFrame: async () => {
           if (sendCounter === 1) {
             console.log("segmentation started");
             setWebcamLoaded(true);
+            if (watchdogTimer) {
+              clearTimeout(watchdogTimer);
+            }
           }
+          if (sendCounter === 0) {
+            watchdogTimer = setTimeout(() => {
+              console.log("watchdog timer hit");
+              camera.stop();
+              shouldUseMediaPipe.current = false;
+              setWebcamLoaded(true);
+              // TODO: getting errors with webcamRef
+
+            }, 120*1000);
+            await pose.send({image: webcamRef.current.video});
+          } 
           await pose.send({image: webcamRef.current.video});
+          
+          //console.log("after frame");
           if (sendCounter > 1) return
           sendCounter++;
         }
       });
       camera.start();
   }
+
+  useEffect(() => {
+    if (shouldUseMediaPipe.current === false) {
+      if (webcamRef.current) {
+        webcamRef.current.style.visibility = "visible";
+      }
+    }
+  }, [webcamLoaded])
 
   const handleVideoEnd = () => {
     
@@ -288,6 +317,8 @@ export default function Form() {
       animatePauseBar();
     } else {
       isPlayingBack.current = true;
+      setInPauseTime(false);
+      isPausing.current = false;
       setInPlayBack(true);
       playbackRecording();
     }
@@ -305,13 +336,19 @@ export default function Form() {
     // # of frames / number of seconds ==> frames/second
     // invert that for seconds/frame * 1000
 
-    const playbackFrameRateTime = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
+    const currentPlaybackRate = proVid.current.playbackRate;
+    const PLAYBACK_RATE = currentPlaybackRate;
+
+    //const playbackFrameRateTime = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
+    const playbackFrameRateTime = ((proVid.current.duration / PLAYBACK_RATE) / resultsRecorded.current.length ) * 1000;
     const playbackFPS = 1 / (playbackFrameRateTime / 1000);
     const canvasCtx = canvasRef.current.getContext('2d');
 
     const numProPoseFrames = proData.current.length;
-    const proVidFPS = numProPoseFrames / proVid.current.duration * proVid.current.playbackRate;
+    //const proVidFPS = numProPoseFrames / proVid.current.duration * proVid.current.playbackRate;
+    const proVidFPS = numProPoseFrames / proVid.current.duration * PLAYBACK_RATE;
     const proVidFrameRateTime = (1 / proVidFPS) * 1000; // time in between frames, 1 / FPS
+    proVid.current.playbackRate = PLAYBACK_RATE;
 
     // say playbackFPS = 42
     // proVidFPS = 30 
@@ -365,6 +402,7 @@ export default function Form() {
           clearInterval(playbackTimer);
           canvasCtx.globalCompositeOperation = 'destination-atop';
           canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          proVid.current.playbackRate = currentPlaybackRate;
           return
         }
 
@@ -445,20 +483,23 @@ export default function Form() {
 
     proVid.current.currentTime = 0;
 
-    pauseBar.current.animate([
+    let anim = pauseBar.current.animate([
       {transform: 'translateX(-100%)'},
       {transform: 'translateX(0%)'}
     ], {
-      duration: PAUSE_TIME * proVid.current.playbackRate,
+      duration: PAUSE_TIME,
       iterations: 1
     });
 
-    setTimeout(() => {
+    anim.addEventListener('finish', () => {
+      proVid.current.play();
+    })
+
+    /*setTimeout(() => {
       if (proVid.current) {
-        //proVid.current.playbackRate = proRate / 100;
         proVid.current.play();
       }
-    }, PAUSE_TIME * proVid.current.playbackRate)
+    }, PAUSE_TIME * proVid.current.playbackRate)*/
   }
 
 
@@ -515,99 +556,6 @@ export default function Form() {
     proVid.current.currentTime = backTime;
   }
 
-  /*
-  const changeToStepped = () => {
-    if (stepped === true) {
-      // stop the timer
-      clearInterval(stepTimer);
-      setStepped(false);
-      runningAnimation.cancel();
-      setRunningAnimation(undefined);
-
-      // pause the video and reset back to time zero
-      proVid.current.pause();
-
-      proVid.current.currentTime = 0;
-      return
-    } 
-
-    // pause the video
-    proVid.current.pause();
-
-    // set the video to the beginning
-    proVid.current.currentTime = 0;
-
-    // calculate the step
-    let totalTime = proVid.current.duration;
-    let step = totalTime / numberOfSteps;
-
-    // create a timer to trigger every {step} seconds
-    startStepTimer(totalTime, step, stepTime);
-
-    setStepped(true);
-  }
-
-  
-  const stepTimeChange = (e) => {
-    let t = e.target.value;
-    setStepTime(t);
-
-    // calculate the step
-    let totalTime = proVid.current.duration;
-    let step = totalTime / numberOfSteps;
-
-    if (stepTimer) {
-      clearInterval(stepTimer);
-      startStepTimer(totalTime, step, t);
-    }
-  }
-
-  const numberOfStepsChange = (e) => {
-    let n = e.target.value;
-    setNumberOfSteps(n);
-
-    // calculate the step
-    let totalTime = proVid.current.duration;
-    let step = totalTime / n;
-
-    if (stepTimer) {
-      clearInterval(stepTimer);
-      startStepTimer(totalTime, step, stepTime);
-    }
-  }
-
-  const startStepTimer = (totalTime, stepLength, stepPauseTime) => {
-
-    proVid.current.currentTime = 0;
-
-    if (runningAnimation) {
-      runningAnimation.cancel();
-      setRunningAnimation(undefined);
-    }
-
-    let anim = progressBar.current.animate([
-      {transform: 'translateX(-100%)'},
-      {transform: 'translateX(0%)'}
-    ], {
-      duration: stepPauseTime*1000,
-      iterations: Infinity
-    });
-    setRunningAnimation(anim);
-
-    // clear the old timer before starting a new one
-    clearInterval(stepTimer);
-
-    let intervalId = setInterval(() => {
-      let newTime = proVid.current.currentTime += stepLength;
-      if (newTime > totalTime) {
-        newTime = 0;
-      }
-      proVid.current.currenTime = newTime;
-    }, stepPauseTime*1000);
-
-    setStepTimer(intervalId);  
-  } */
-
   const proVidSourceChange = (e) => {
     setProSelection(e.target.value);
   }
@@ -648,25 +596,21 @@ export default function Form() {
     let percentage = ( proVid.current.currentTime / proVid.current.duration ) * 100;
     setSeekWidth(percentage);
   }
-  const playVideo = () => {
-    if (proVid.current.paused) {
-      proVid.current.play();
-    } else {
-      proVid.current.pause();
-    }
-  }
 
   const startOrStopVideo = () => {
-    
-    // if stepped video is playing, stop it
-    if (stepped) {
-      clearInterval(stepTimer);
-      setStepped(false);
-      runningAnimation.cancel();
-      setRunningAnimation(undefined);
-      proVid.current.pause();
-    } else if (proVid.current.paused) {
-      proVid.current.play();
+    if (proVid.current.paused) {
+      if (isPausing.current === true) {
+        let anim = pauseBar.current.getAnimations();
+        if (anim.length > 0) {
+          if (anim[0].playState === 'running') {
+            anim[0].pause();
+          } else if (anim[0].playState === 'paused') {
+            anim[0].play();
+          }
+        } 
+      } else {
+        proVid.current.play();
+      }
     } else {
       proVid.current.pause();
     }
@@ -675,6 +619,7 @@ export default function Form() {
   return (
     <div className={styles.container}>
       <div className={styles.instructionsContainer}>
+        Current supported browsers: Chrome, FireFox <br />
         This app is designed for use on a large screen, i.e. laptop or computer with webcam. <br />
         Voice commands include: Play, Pause, Stop, Speed Up, Slow Down, Restart, and Start Over. <br />
         Please send feedback to: <a href="mailto: joelmasters@gmail.com">joelmasters@gmail.com</a>
@@ -733,49 +678,6 @@ export default function Form() {
               <label htmlFor="pro-rate">{proRate}%</label>
             </td>
           </tr>
-          {/*<tr>
-            <td className={styles.optionBlockLeft}>
-              Step Time
-            </td>
-            <td className={styles.optionBlockRight}>
-              <input className={styles.optionBlock}
-                    type="range" 
-                    id="step-time" 
-                    name="step-time" 
-                    min="1" max="10" step="1"
-                    value={stepTime}
-                    onChange={stepTimeChange} />
-              <label htmlFor="step-time">{stepTime}s</label>
-            </td>
-          </tr>
-          <tr>
-            <td className={styles.optionBlockLeft}>
-              Number of Steps
-            </td>
-            <td className={styles.optionBlockRight}>
-              <input className={styles.optionBlock}
-                    type="range" 
-                    id="number-of-steps" 
-                    name="number-of-steps" 
-                    min="3" max="15" step="1"
-                    value={numberOfSteps}
-                    onChange={numberOfStepsChange} />
-              <label htmlFor="number-of-steps">{numberOfSteps}</label>
-            </td>
-          </tr>
-          <tr>
-            <td className={styles.optionBlockLeft}>
-              Step Video
-            </td>
-            <td className={styles.optionBlockRight}>
-              <input className={styles.optionBlock}
-                    type="checkbox" 
-                    id="step-video" 
-                    name="step-video"
-                    onChange={changeToStepped}
-                    checked={stepped} />
-            </td>
-          </tr>*/}
           <tr>
             <td
                 className={styles.buttonCell}
@@ -914,7 +816,7 @@ export default function Form() {
         <div className={styles.controlsContainer}>
           <button 
               className={styles.controlsPlayButton}
-              onClick={playVideo}
+              onClick={startOrStopVideo}
               >
                 Play
           </button>

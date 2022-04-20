@@ -76,8 +76,20 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
     // more frames recorded from camera than video
     for (let i = 0; i < proResults.length; i++) { // frame number
       for (let j = 0; j < proResults[i].length; j++) { // landmark number
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].x - (youResultsFiltered[Math.ceil(i*ratio)][j].x - youResultsFiltered[Math.floor(i*ratio)][j].x)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].x));
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].y - (youResultsFiltered[Math.ceil(i*ratio)][j].y - youResultsFiltered[Math.floor(i*ratio)][j].y)/ratio + youResultsFiltered[Math.floor(i*ratio)][j].y));
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].x - _interpolate(youResultsFiltered, i, j, ratio, 'x')));
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].y - _interpolate(youResultsFiltered, i, j, ratio, 'y')));
+      }  
+    }
+  } else {
+    for (let i = 0; i < youResultsFiltered[0].length; i++) {
+      cumulativeErrors.push([0]);
+    }
+
+    // more frames recorded from camera than video
+    for (let i = 0; i < youResultsFiltered.length; i++) { // frame number
+      for (let j = 0; j < youResultsFiltered[i].length; j++) { // landmark number
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(youResultsFiltered[i][j].x - _interpolate(proResults, i, j, ratio, 'x')));
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(youResultsFiltered[i][j].y - _interpolate(proResults, i, j, ratio, 'y')));
       }  
     }
   }
@@ -138,6 +150,24 @@ const debounce = (func, timeout = 300) => {
     }, timeout);
   };
 }
+
+const _interpolate = (arr, row, col, ratio, key) => {
+  if (key === 'x') {
+    return (arr[Math.ceil(row*ratio)][col].x - arr[Math.floor(row*ratio)][col].x)/ratio + arr[Math.floor(row*ratio)][col].x;
+  } else if (key === 'y') {
+    return (arr[Math.ceil(row*ratio)][col].y - arr[Math.floor(row*ratio)][col].y)/ratio + arr[Math.floor(row*ratio)][col].y;
+  } else {
+    console.warn("Error: invalid key specified in _interpolate");
+    return 0
+  }
+  
+}
+
+/*
+
+poseDataEagle.map(x => x.map(x => { let y = Object.assign({x: 1-y.x}, x); return y}))
+
+*/
 
 module.exports = {
   squashResults,
