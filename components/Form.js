@@ -13,6 +13,8 @@ import { poseDataRicky, poseDataRickyMirrored } from './data/poseDataRicky.js';
 import helpers from './form-helpers';
 
 export default function Form() {
+  // TODO: segment proVideo
+  //      re-perform segmentation on canvas size change
 
   const PAUSE_TIME = 5000; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
@@ -65,6 +67,8 @@ export default function Form() {
   const [camerasFound, setCamerasFound] = useState(undefined);
   const [camSelected, setCamSelected] = useState(undefined);
   const shouldUseMediaPipe = useRef(true);
+  const playbackCounter = useRef(0);
+  const proPlaybackCounter = useRef(0);
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -92,6 +96,40 @@ export default function Form() {
       setVideoHeight(proVid.current.scrollHeight);
       setVideoWidth(proVid.current.offsetWidth);
     })
+
+    window.addEventListener('keydown', function(event) {
+      event.preventDefault();
+      const VID_FPS = 30;
+      const SINGLE_FRAME_TIME = proVid.current.duration/VID_FPS;
+      let newTime = 0;
+
+      switch (event.key) {
+        case "ArrowLeft":
+            // Left pressed
+            newTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
+            if (newTime < 0) {
+              proVid.current.currentTime = 0;
+            } else {
+              proVid.current.currentTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
+            }
+            break;
+        case "ArrowRight":
+            // Right pressed
+            newTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
+            if (newTime > proVid.current.duration) {
+              proVid.current.currentTime = proVid.current.duration;
+            } else {
+              proVid.current.currentTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
+            }
+            break;
+        //case "ArrowUp":
+            // Up pressed
+        //    break;
+        //case "ArrowDown":
+            // Down pressed
+        //    break;
+        }
+    });
 
     proVid.current.addEventListener('ended', () => {
       handleVideoEnd();
@@ -328,7 +366,7 @@ export default function Form() {
 
     // this function plays back what was recorded from the previous throw
     let playbackTimer = undefined;
-    let playbackCounter = 0;
+    playbackCounter.current = 0;
     //const playbackFrameRate = 1000 / (proVid.current.playbackRate * 30); // ms for 1 frame every 30 sec
 
     // duration / playback rate == adjusted time (5.2 seconds)
@@ -389,32 +427,41 @@ export default function Form() {
     proVid.current.play();
 
     let proPlaybackTimer = undefined;
-    let proPlaybackCounter = 0;
+    proPlaybackCounter.current = 0;
 
     const landmarkCtx = landmarkCanvasRef.current.getContext('2d');
+
+    proVid.current.addEventListener('seeked', handleSeeked, true);
+
     
     // play back the previous recorded form
     if (!playbackTimer) {
       playbackTimer = setInterval(() => {
-        if (playbackCounter >= resultsRecorded.current.length || isPlayingBack.current === false) {
+        
+        if (playbackCounter.current >= resultsRecorded.current.length || isPlayingBack.current === false) {
           //console.log("exiting playback");
           resultsRecorded.current = [];
           clearInterval(playbackTimer);
           canvasCtx.globalCompositeOperation = 'destination-atop';
           canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           proVid.current.playbackRate = currentPlaybackRate;
+          proVid.current.removeEventListener('seeked', handleSeeked, true);
           return
         }
 
         canvasCtx.save();
         canvasCtx.globalCompositeOperation = 'destination-atop';
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.drawImage(resultsRecorded.current[playbackCounter].image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(resultsRecorded.current[playbackCounter.current].image, 0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.globalCompositeOperation = 'destination-in';
-        canvasCtx.drawImage(resultsRecorded.current[playbackCounter].segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(resultsRecorded.current[playbackCounter.current].segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.restore();
         
-        playbackCounter++;
+        if (proVid.current.paused === true) {
+          return
+        }
+
+        playbackCounter.current++;
 
       }, playbackFrameRateTime)
     }
@@ -424,7 +471,7 @@ export default function Form() {
       const BOX_PADDING = 10;
 
       proPlaybackTimer = setInterval(() => {
-        if (proPlaybackCounter >= proData.current.length || isPlayingBack.current === false) {
+        if (proPlaybackCounter.current >= proData.current.length || isPlayingBack.current === false) {
           clearInterval(proPlaybackTimer);
           landmarkCtx.globalCompositeOperation = 'destination-atop';
           landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
@@ -437,10 +484,10 @@ export default function Form() {
         //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
         //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
 
-        let minX = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, proData.current[proPlaybackCounter][greatestDiffLandmark].x);
-        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x, proData.current[proPlaybackCounter][greatestDiffLandmark].x);
-        let minY = Math.min(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, proData.current[proPlaybackCounter][greatestDiffLandmark].y);
-        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y, proData.current[proPlaybackCounter][greatestDiffLandmark].y);
+        let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+        let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
 
         let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
         let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
@@ -454,8 +501,8 @@ export default function Form() {
         landmarkCtx.beginPath();
         landmarkCtx.fillStyle = '#FF0000';
         landmarkCtx.arc(
-              squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-              squashedCurrentResults[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+              squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+              squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
               5,
               0,
               2*Math.PI 
@@ -464,8 +511,8 @@ export default function Form() {
         landmarkCtx.beginPath();
         landmarkCtx.fillStyle = '#FFFF00';
         landmarkCtx.arc(
-              proData.current[proPlaybackCounter][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-              proData.current[proPlaybackCounter][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+              proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+              proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
               5,
               0,
               2*Math.PI 
@@ -473,10 +520,22 @@ export default function Form() {
         landmarkCtx.fill();
         landmarkCtx.restore();
 
-        proPlaybackCounter++;
+        if (proVid.current.paused === true) {
+          return
+        }
+
+        proPlaybackCounter.current++;
 
       }, proVidFrameRateTime)
     }  
+  }
+
+  const handleSeeked = (e) => {
+    // TODO: TEST THIS
+
+    let ratioComplete = e.target.currentTime / e.target.duration;
+    playbackCounter.current = Math.floor(ratioComplete * resultsRecorded.current.length);
+    proPlaybackCounter.current = Math.floor(ratioComplete * proData.current.length);
   }
 
   const animatePauseBar = () => {
