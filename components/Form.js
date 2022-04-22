@@ -16,7 +16,7 @@ export default function Form() {
   // TODO: segment proVideo
   //      re-perform segmentation on canvas size change
 
-  const PAUSE_TIME = 5000; // ms to pause at end of video before looping
+  const PAUSE_TIME = 3500; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
 
@@ -375,7 +375,7 @@ export default function Form() {
     // invert that for seconds/frame * 1000
 
     const currentPlaybackRate = proVid.current.playbackRate;
-    const PLAYBACK_RATE = currentPlaybackRate;
+    const PLAYBACK_RATE = currentPlaybackRate / 2;
 
     //const playbackFrameRateTime = ((proVid.current.duration / proVid.current.playbackRate) / resultsRecorded.current.length ) * 1000;
     const playbackFrameRateTime = ((proVid.current.duration / PLAYBACK_RATE) / resultsRecorded.current.length ) * 1000;
@@ -690,7 +690,7 @@ export default function Form() {
                 onChange={proVidSourceChange}>
           <option value="eagle">Eagle McMahon</option>
           <option value="ricky">Ricky Wysocki</option>
-          <option value="kajiyama">Manabu Kajiyama</option>
+          {/*<option value="kajiyama">Manabu Kajiyama</option>*/}
         </select>
         <table className={styles.optionsTable}>
           <tbody>
@@ -787,9 +787,11 @@ export default function Form() {
         <div className={styles.playbackText}>
           { inPlayBack ? 'Playback' : '' }
         </div>
-        <div className={styles.focusAreaText}>
-          {focusArea}
-        </div>
+        {focusArea === '' ? '' : 
+          <div className={styles.focusAreaText}>
+            {focusArea}
+          </div>
+        }
         <div className={styles.videoSpeedText} 
              ref={videoSpeedText}
              onAnimationEnd={() => 
@@ -850,9 +852,9 @@ export default function Form() {
                  opacity:proOpacity + '%',
                  transform: 'scaleX(' + proOrientation + ')',
                 }}>
-          <source src={"/videos/" + proSelection + ".webm"}
+          <source src={"/videos/" + proSelection + "_segmented.webm"}
               type="video/webm" />
-          <source src={"/videos/" + proSelection + ".mp4"}
+          <source src={"/videos/" + proSelection + "_segmented.mp4"}
               type="video/mp4" />
         </video>
         <div 

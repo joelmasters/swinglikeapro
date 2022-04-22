@@ -33,8 +33,8 @@ export default function Form() {
       if (proVid.current) {
         setVideoHeight(proVid.current.scrollHeight);
         setVideoWidth(proVid.current.offsetWidth);
-        proVid.current.defaultPlaybackRate = 0.5;
-        proVid.current.playbackRate = 0.5;
+        proVid.current.defaultPlaybackRate = 1.0;
+        proVid.current.playbackRate = 1.0;
         //proVid.current.style.visibility = "hidden";
         //proVid.current.play();
       }
@@ -45,6 +45,12 @@ export default function Form() {
       setVideoHeight(proVid.current.scrollHeight);
       setVideoWidth(proVid.current.offsetWidth);
     })
+
+    proVid.current.addEventListener('play', () => {
+      if (numRuns.current === 0) {
+        recordCanvas();
+      }
+    });
 
     proVid.current.addEventListener('ended', (e) => {
       if (numRuns.current < 5) {
@@ -66,6 +72,7 @@ export default function Form() {
           }));
         
         let segmentationMasks = resultsAll.current.map(row => row.slice(1).map(x => x.segmentationMask));
+        let imgs = resultsAll.current.map(row => row.slice(1).map(x => x.image));
 
         //console.log(dataToWrite);
 
@@ -144,6 +151,7 @@ export default function Form() {
 
         console.log(lmAveragesInverted);
         console.log(segmentationMasks);
+        console.log(imgs);
       }})
 
 
@@ -169,9 +177,9 @@ export default function Form() {
         }
         //canvasCtx.restore();
         
-        canvasCtx.globalCompositeOperation = 'source-over';
-        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
-        drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
+        //canvasCtx.globalCompositeOperation = 'source-over';
+        //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
+        //drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
         canvasCtx.restore();
 
         if (!proVid.current.paused) {
@@ -188,7 +196,7 @@ export default function Form() {
         modelComplexity: 1,
         smoothLandmarks: true,
         enableSegmentation: true,
-        smoothSegmentation: false,
+        smoothSegmentation: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
@@ -207,6 +215,59 @@ export default function Form() {
       proVid.current.requestVideoFrameCallback(grabFrame);
 
   }
+
+
+  // TODO: Nothing downloading
+  function record(canvas, time) {
+    var recordedChunks = [];
+    return new Promise(function (res, rej) {
+        var stream = canvas.captureStream(30 /*fps*/);
+        var mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "video/webm; codecs=vp9"
+        });
+        
+        //ondataavailable will fire in interval of `time || 4000 ms`
+        mediaRecorder.start();
+        console.log("starting mediaRecorder", mediaRecorder);
+
+        mediaRecorder.ondataavailable = function (event) {
+            console.log("data available");
+            recordedChunks.push(event.data);
+             // after stop `dataavilable` event run one more time
+            //if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            //}
+        }
+
+        proVid.current.addEventListener('ended', () => {
+          // fire data collection when video ends
+          console.log("request Data");
+          mediaRecorder.requestData();
+        })
+
+        mediaRecorder.onstop = function (event) {
+            console.log("media recorder stopped");
+            var blob = new Blob(recordedChunks, {type: "video/webm" });
+            var url = URL.createObjectURL(blob);
+            res(url);
+        }
+    })
+  }
+
+  const recordCanvas = () => {
+    var video$ = document.createElement('video');
+    document.body.appendChild(video$);
+    var link$ = document.createElement('a');
+    link$.setAttribute('download','recordingVideo');
+    const recording = record(canvasRef.current, 5000);
+    recording.then(url => {
+      video$.setAttribute('src', url);
+      link$.setAttribute('href', url);
+      console.log("downloading video");
+      link$.click();
+    })
+  }
+
 
   return (
     <div className={styles.container}
@@ -253,3 +314,4 @@ export default function Form() {
     </div>
   )
 }
+
