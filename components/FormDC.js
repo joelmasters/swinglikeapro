@@ -53,7 +53,7 @@ export default function Form() {
     });
 
     proVid.current.addEventListener('ended', (e) => {
-      if (numRuns.current < 5) {
+      if (numRuns.current < 1) {
         resultsAll.current.push(resultsRecorded.current);
         resultsRecorded.current = [];
         proVid.current.play();
@@ -221,7 +221,7 @@ export default function Form() {
   function record(canvas, time) {
     var recordedChunks = [];
     return new Promise(function (res, rej) {
-        var stream = canvas.captureStream(30 /*fps*/);
+        var stream = canvas.captureStream(29.97 /*fps*/);
         var mediaRecorder = new MediaRecorder(stream, {
             mimeType: "video/webm; codecs=vp9"
         });
@@ -234,9 +234,9 @@ export default function Form() {
             console.log("data available");
             recordedChunks.push(event.data);
              // after stop `dataavilable` event run one more time
-            //if (mediaRecorder.state === 'recording') {
+            if (mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            //}
+            }
         }
 
         proVid.current.addEventListener('ended', () => {
@@ -283,9 +283,9 @@ export default function Form() {
                 opacity:proOpacity + '%',
                 transform: 'scaleX(' + proOrientation + ')',
               }}>
-        <source src={"/videos/ricky.webm"}
+        <source src={"/videos/eagle.webm"}
             type="video/webm" />
-        <source src={"/videos/ricky.mp4"}
+        <source src={"/videos/eagle.mp4"}
             type="video/mp4" />
       </video>
       <br />

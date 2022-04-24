@@ -67,6 +67,7 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
   let youResultsFiltered = filterResults(youResults);
 
   let cumulativeErrors = [];
+  let cumulativeFrameErrors = [];
 
   if (ratio >= 1) {
     for (let i = 0; i < proResults[0].length; i++) {
@@ -75,10 +76,15 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
 
     // more frames recorded from camera than video
     for (let i = 0; i < proResults.length; i++) { // frame number
+      let tempFrameError = 0;
       for (let j = 0; j < proResults[i].length; j++) { // landmark number
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].x - _interpolate(youResultsFiltered, i, j, ratio, 'x')));
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(proResults[i][j].y - _interpolate(youResultsFiltered, i, j, ratio, 'y')));
+        let errorX = Math.abs(parseFloat(proResults[i][j].x - _interpolate(youResultsFiltered, i, j, ratio, 'x')));
+        let errorY = Math.abs(parseFloat(proResults[i][j].y - _interpolate(youResultsFiltered, i, j, ratio, 'y')));
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
+        tempFrameError += errorX + errorY;
       }  
+      cumulativeFrameErrors.push(tempFrameError);
     }
   } else {
     for (let i = 0; i < youResultsFiltered[0].length; i++) {
@@ -87,10 +93,15 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
 
     // more frames recorded from camera than video
     for (let i = 0; i < youResultsFiltered.length; i++) { // frame number
+      let tempFrameError = 0;
       for (let j = 0; j < youResultsFiltered[i].length; j++) { // landmark number
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(youResultsFiltered[i][j].x - _interpolate(proResults, i, j, ratio, 'x')));
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + Math.abs(parseFloat(youResultsFiltered[i][j].y - _interpolate(proResults, i, j, ratio, 'y')));
+        let errorX = Math.abs(parseFloat(youResultsFiltered[i][j].x - _interpolate(proResults, i, j, ratio, 'x')));
+        let errorY = Math.abs(parseFloat(youResultsFiltered[i][j].y - _interpolate(proResults, i, j, ratio, 'y')));
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
+        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
+        tempFrameError += errorX + errorY;
       }  
+      cumulativeFrameErrors.push(tempFrameError);
     }
   }
   //console.log(cumulativeErrors);
@@ -135,7 +146,14 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
 
   */
 
-  return maxErrorIdx; // landmark with greatest difference
+  let peakErrorFrames = _findPeaks(cumulativeFrameErrors).sort((a, b) => {
+    return a[0] < b[0] ? 1 : -1
+  }).slice(0,3).map(x => x[1]);
+
+  let normalizedErrors = _normalizeArray(cumulativeFrameErrors);
+
+
+  return [maxErrorIdx, peakErrorFrames, normalizedErrors]; // landmark with greatest difference
 }
 
 const debounce = (func, timeout = 300) => {
@@ -162,6 +180,32 @@ const _interpolate = (arr, row, col, ratio, key) => {
   }
   
 }
+
+const _findPeaks = (arr) => {
+  var peak;
+  return arr.reduce(function(peaks, val, i) {
+    if (arr[i+1] > arr[i]) {
+      peak = arr[i+1];
+    } else if ((arr[i+1] < arr[i]) && (typeof peak === 'number')) {
+      peaks.push([peak, i]);
+      peak = undefined;
+    }
+    return peaks;
+  }, []);
+}
+// source: https://stackoverflow.com/questions/25045638/finding-the-local-maxima-in-a-1d-array
+
+const _normalizeArray = (arr) => {
+  let normalizeRatio = Math.max.apply(Math, arr) / 100;
+
+  let arrNormalized = arr.map(function (v) {
+      return (v / normalizeRatio);
+  });
+
+  return arrNormalized;
+}
+
+// source: https://stackoverflow.com/questions/13368046/how-to-normalize-a-list-of-positive-numbers-in-javascript
 
 /*
 

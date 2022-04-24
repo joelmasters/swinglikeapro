@@ -69,6 +69,7 @@ export default function Form() {
   const shouldUseMediaPipe = useRef(true);
   const playbackCounter = useRef(0);
   const proPlaybackCounter = useRef(0);
+  const framePauseTimer = useRef(undefined);
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -112,6 +113,10 @@ export default function Form() {
             } else {
               proVid.current.currentTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
             }
+            if (framePauseTimer.current != undefined) {
+              clearTimeout(framePauseTimer.current);
+              framePauseTimer.current = undefined;
+            }
             break;
         case "ArrowRight":
             // Right pressed
@@ -120,6 +125,10 @@ export default function Form() {
               proVid.current.currentTime = proVid.current.duration;
             } else {
               proVid.current.currentTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
+            }
+            if (framePauseTimer.current != undefined) {
+              clearTimeout(framePauseTimer.current);
+              framePauseTimer.current = undefined;
             }
             break;
         //case "ArrowUp":
@@ -310,6 +319,8 @@ export default function Form() {
         onFrame: async () => {
           if (sendCounter === 1) {
             console.log("segmentation started");
+            //console.log("webcamRef.current.video.style ", webcamRef.current.video.style);
+            webcamRef.current.video.style.visibility = "hidden";
             setWebcamLoaded(true);
             if (watchdogTimer) {
               clearTimeout(watchdogTimer);
@@ -339,7 +350,7 @@ export default function Form() {
   useEffect(() => {
     if (shouldUseMediaPipe.current === false) {
       if (webcamRef.current) {
-        webcamRef.current.style.visibility = "visible";
+        webcamRef.current.video.style.visibility = "visible";
       }
     }
   }, [webcamLoaded])
@@ -397,7 +408,11 @@ export default function Form() {
     // proVidFrame[1] = playbackFrame[1*1.4] = playbackFrame[1.4];
 
     const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
-    let greatestDiffLandmark = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+    let [greatestDiffLandmark, greatestDiffFrames, diffFrames] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+
+    //console.log("greatestDiffLandmark: ", greatestDiffLandmark);
+    console.log("greatestDiffFrames: ", greatestDiffFrames);
+    //console.log("diffFrames: ", diffFrames);
 
     const LANDMARK_NAMES = [
       'Left Shoulder',
@@ -433,7 +448,9 @@ export default function Form() {
 
     proVid.current.addEventListener('seeked', handleSeeked, true);
 
-    
+    const gridXStep = landmarkCanvasRef.current.width / numProPoseFrames;
+    framePauseTimer.current = undefined;
+
     // play back the previous recorded form
     if (!playbackTimer) {
       playbackTimer = setInterval(() => {
@@ -484,47 +501,90 @@ export default function Form() {
         //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
         //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
 
-        let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-        let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-        let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
-        let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+        if (squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark] && proData.current[proPlaybackCounter.current][greatestDiffLandmark]) {
+          let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+          let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+          let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+          let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
 
-        let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
-        let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
-        let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
-        let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
+          let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
+          let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
+          let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
+          let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
 
-        // TODO: Box not showing up
+          // TODO: Box not showing up
+          landmarkCtx.strokeStyle = '#00FF00';
+          landmarkCtx.lineWidth = 5;
+          landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+          landmarkCtx.beginPath();
+          landmarkCtx.fillStyle = '#FF0000';
+          landmarkCtx.arc(
+                squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+                squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+                5,
+                0,
+                2*Math.PI 
+            )
+          landmarkCtx.fill();
+          landmarkCtx.beginPath();
+          landmarkCtx.fillStyle = '#FFFF00';
+          landmarkCtx.arc(
+                proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+                proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+                5,
+                0,
+                2*Math.PI 
+            )
+          landmarkCtx.fill();
+        }
+
+        landmarkCtx.lineWidth = 3;
         landmarkCtx.strokeStyle = '#00FF00';
-        landmarkCtx.lineWidth = 5;
-        landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
         landmarkCtx.beginPath();
-        landmarkCtx.fillStyle = '#FF0000';
-        landmarkCtx.arc(
-              squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-              squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
-              5,
-              0,
-              2*Math.PI 
-          )
-        landmarkCtx.fill();
-        landmarkCtx.beginPath();
-        landmarkCtx.fillStyle = '#FFFF00';
-        landmarkCtx.arc(
-              proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-              proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
-              5,
-              0,
-              2*Math.PI 
-          )
-        landmarkCtx.fill();
+        if (proOrientation === -1) {
+          landmarkCtx.moveTo(Math.floor(landmarkCanvasRef.current.width-gridXStep), Math.floor(landmarkCanvasRef.current.height-diffFrames[0]/100*landmarkCanvasRef.current.height))
+        } else {
+          landmarkCtx.moveTo(Math.floor(gridXStep), Math.floor(landmarkCanvasRef.current.height-diffFrames[0]/100*landmarkCanvasRef.current.height))
+        }
+        
+        for (let i = 1; i < proPlaybackCounter.current; i++) {
+          let chartX;
+          if (proOrientation === -1) {
+            chartX = Math.floor(landmarkCanvasRef.current.width - gridXStep*i)
+          } else {
+            chartX = Math.floor(gridXStep*i)
+          }
+          landmarkCtx.lineTo(chartX, Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height))
+          //console.log(Math.floor(gridXStep)*i + ", " + Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height));
+        }
+        landmarkCtx.stroke();
+
         landmarkCtx.restore();
 
+
+        // pause when greatest diff frame is reached
+        if (greatestDiffFrames.includes(proPlaybackCounter.current)) {
+          //console.log("pausing at frame: ", proPlaybackCounter.current);
+          if (framePauseTimer.current === undefined) {
+            if (!proVid.current.paused) {
+              proVid.current.pause();
+            }
+            framePauseTimer.current = setTimeout(() => {
+              proVid.current.play();
+            }, 3000);
+          }
+          //console.log()
+        }
+
         if (proVid.current.paused === true) {
+          //console.log("video is paused");
           return
         }
 
         proPlaybackCounter.current++;
+        framePauseTimer.current = undefined;
+        //console.log("proPlaybackCounter.current: ", proPlaybackCounter.current);
 
       }, proVidFrameRateTime)
     }  
@@ -752,7 +812,7 @@ export default function Form() {
                   onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
             </td>
           </tr>
-          <tr>
+          {/*<tr>
             <td>
               {camerasFound && camerasFound.length > 1 ? camerasFound.map(
                 (cam, idx) => 
@@ -764,7 +824,7 @@ export default function Form() {
                   </button>
               ) : '' }
             </td>
-          </tr>
+              </tr>*/}
       </tbody>
       </table>
       </div>
@@ -852,9 +912,9 @@ export default function Form() {
                  opacity:proOpacity + '%',
                  transform: 'scaleX(' + proOrientation + ')',
                 }}>
-          <source src={"/videos/" + proSelection + "_segmented.webm"}
+          <source src={"/videos/" + proSelection + ".webm"}
               type="video/webm" />
-          <source src={"/videos/" + proSelection + "_segmented.mp4"}
+          <source src={"/videos/" + proSelection + ".mp4"}
               type="video/mp4" />
         </video>
         <div 
