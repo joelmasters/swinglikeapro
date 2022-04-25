@@ -70,6 +70,8 @@ export default function Form() {
   const playbackCounter = useRef(0);
   const proPlaybackCounter = useRef(0);
   const framePauseTimer = useRef(undefined);
+  const accuracy = useRef(0.0);
+  const [accuracyValue, setAccuracyValue] = useState(0.0);
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -363,6 +365,7 @@ export default function Form() {
       setInPauseTime(true);
       isPausing.current = true;
       setFocusArea('');
+      setAccuracyValue(0.0);
       animatePauseBar();
     } else {
       isPlayingBack.current = true;
@@ -408,10 +411,12 @@ export default function Form() {
     // proVidFrame[1] = playbackFrame[1*1.4] = playbackFrame[1.4];
 
     const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
-    let [greatestDiffLandmark, greatestDiffFrames, diffFrames] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+    let [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+    
+    setAccuracyValue(accuracyScore);
 
     //console.log("greatestDiffLandmark: ", greatestDiffLandmark);
-    console.log("greatestDiffFrames: ", greatestDiffFrames);
+    //console.log("greatestDiffFrames: ", greatestDiffFrames);
     //console.log("diffFrames: ", diffFrames);
 
     const LANDMARK_NAMES = [
@@ -539,7 +544,10 @@ export default function Form() {
         }
 
         landmarkCtx.lineWidth = 3;
-        landmarkCtx.strokeStyle = '#00FF00';
+        let grad = landmarkCtx.createLinearGradient(0, 0, 0, landmarkCanvasRef.current.height);
+        grad.addColorStop(0, "yellow");
+        grad.addColorStop(1, "green");
+        landmarkCtx.strokeStyle = grad; //'#00FF00';
 
         landmarkCtx.beginPath();
         if (proOrientation === -1) {
@@ -850,6 +858,11 @@ export default function Form() {
         {focusArea === '' ? '' : 
           <div className={styles.focusAreaText}>
             {focusArea}
+          </div>
+        }
+        {accuracyValue === 0.0 ? '' : 
+          <div className={styles.accuracyText}>
+            {`Score: ${Math.round(accuracyValue*100)}%`}
           </div>
         }
         <div className={styles.videoSpeedText} 

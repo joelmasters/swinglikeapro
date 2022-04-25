@@ -68,43 +68,43 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
 
   let cumulativeErrors = [];
   let cumulativeFrameErrors = [];
+  let numberOfTotalLandmarks = 0;
+  const ACCEPTANCE_ERROR = 0.1; // 10%
+  let numberOfErrorLandmarks = 0;
 
-  if (ratio >= 1) {
-    for (let i = 0; i < proResults[0].length; i++) {
-      cumulativeErrors.push([0]);
-    }
+  let resultsA = [];
+  let resultsB = [];
 
-    // more frames recorded from camera than video
-    for (let i = 0; i < proResults.length; i++) { // frame number
-      let tempFrameError = 0;
-      for (let j = 0; j < proResults[i].length; j++) { // landmark number
-        let errorX = Math.abs(parseFloat(proResults[i][j].x - _interpolate(youResultsFiltered, i, j, ratio, 'x')));
-        let errorY = Math.abs(parseFloat(proResults[i][j].y - _interpolate(youResultsFiltered, i, j, ratio, 'y')));
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
-        tempFrameError += errorX + errorY;
-      }  
-      cumulativeFrameErrors.push(tempFrameError);
-    }
-  } else {
-    for (let i = 0; i < youResultsFiltered[0].length; i++) {
-      cumulativeErrors.push([0]);
-    }
-
-    // more frames recorded from camera than video
-    for (let i = 0; i < youResultsFiltered.length; i++) { // frame number
-      let tempFrameError = 0;
-      for (let j = 0; j < youResultsFiltered[i].length; j++) { // landmark number
-        let errorX = Math.abs(parseFloat(youResultsFiltered[i][j].x - _interpolate(proResults, i, j, ratio, 'x')));
-        let errorY = Math.abs(parseFloat(youResultsFiltered[i][j].y - _interpolate(proResults, i, j, ratio, 'y')));
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
-        cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
-        tempFrameError += errorX + errorY;
-      }  
-      cumulativeFrameErrors.push(tempFrameError);
-    }
+  if (ratio >= 1) { // more frames recorded from webcam than in pro video
+    resultsA = [...proResults]; // number of frames in results A < number of frames in results B
+    resultsB = [...youResultsFiltered];
+  } else { // more frames in pro video than recorded from webcam
+    resultsA = [...youResultsFiltered];
+    resultsB = [...proResults];
   }
-  //console.log(cumulativeErrors);
+
+  for (let i = 0; i < resultsA[0].length; i++) {
+    cumulativeErrors.push([0]);
+  }
+  numberOfTotalLandmarks = resultsA.length * resultsA[0].length;
+
+  // more frames recorded from camera than video
+  for (let i = 0; i < resultsA.length; i++) { // frame number
+    let tempFrameError = 0;
+    for (let j = 0; j < resultsA[i].length; j++) { // landmark number
+      let errorX = Math.abs(parseFloat(resultsA[i][j].x - _interpolate(resultsB, i, j, ratio, 'x')));
+      let errorY = Math.abs(parseFloat(resultsA[i][j].y - _interpolate(resultsB, i, j, ratio, 'y')));
+      cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
+      cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
+      tempFrameError += errorX + errorY;
+      if (errorX + errorY > ACCEPTANCE_ERROR) {
+        numberOfErrorLandmarks++;
+      }
+    }  
+    cumulativeFrameErrors.push(tempFrameError);
+  }
+
+  let accuracyScore = 1.0 - numberOfErrorLandmarks/numberOfTotalLandmarks;
 
   let maxError = cumulativeErrors[0];
   let maxErrorIdx = 0;
@@ -152,8 +152,7 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
 
   let normalizedErrors = _normalizeArray(cumulativeFrameErrors);
 
-
-  return [maxErrorIdx, peakErrorFrames, normalizedErrors]; // landmark with greatest difference
+  return [maxErrorIdx, peakErrorFrames, normalizedErrors, accuracyScore]; // landmark with greatest difference
 }
 
 const debounce = (func, timeout = 300) => {
