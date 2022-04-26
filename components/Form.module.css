@@ -46,13 +46,15 @@
 .webcamContainer {
   width: 100vw;
   position: absolute;
+  height: 100%;
   bottom: 0px;
   left: 0px;
 }
 .outputCanvas {
   position: absolute;
-  top: 0px;
-  left: 0px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .videoControlButtonContainer {
   width: 300px;
@@ -235,7 +237,10 @@
   }
 }
 .webcam {
-  
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .focusAreaText {
   position: absolute;

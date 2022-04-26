@@ -70,7 +70,6 @@ export default function Form() {
   const playbackCounter = useRef(0);
   const proPlaybackCounter = useRef(0);
   const framePauseTimer = useRef(undefined);
-  const accuracy = useRef(0.0);
   const [accuracyValue, setAccuracyValue] = useState(0.0);
 
   useEffect(()=> {
@@ -906,13 +905,13 @@ export default function Form() {
           <canvas 
             className={styles.outputCanvas}
             ref={canvasRef}
-            width={videoWidth}
+            width={videoHeight*1.33}
             height={videoHeight}>  
           </canvas>
           <canvas
             className={styles.outputCanvas}
             ref={landmarkCanvasRef}
-            width={videoWidth}
+            width={videoHeight*1.33}
             height={videoHeight}>
           </canvas>
           {/*<div 
