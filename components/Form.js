@@ -108,31 +108,34 @@ export default function Form() {
 
       switch (event.key) {
         case "ArrowLeft":
-            // Left pressed
-            newTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
-            if (newTime < 0) {
-              proVid.current.currentTime = 0;
-            } else {
-              proVid.current.currentTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
-            }
-            if (framePauseTimer.current != undefined) {
-              clearTimeout(framePauseTimer.current);
-              framePauseTimer.current = undefined;
-            }
-            break;
+          // Left pressed
+          newTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
+          if (newTime < 0) {
+            proVid.current.currentTime = 0;
+          } else {
+            proVid.current.currentTime = proVid.current.currentTime - SINGLE_FRAME_TIME;
+          }
+          if (framePauseTimer.current != undefined) {
+            clearTimeout(framePauseTimer.current);
+            framePauseTimer.current = undefined;
+          }
+          break;
         case "ArrowRight":
-            // Right pressed
-            newTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
-            if (newTime > proVid.current.duration) {
-              proVid.current.currentTime = proVid.current.duration;
-            } else {
-              proVid.current.currentTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
-            }
-            if (framePauseTimer.current != undefined) {
-              clearTimeout(framePauseTimer.current);
-              framePauseTimer.current = undefined;
-            }
-            break;
+          // Right pressed
+          newTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
+          if (newTime > proVid.current.duration) {
+            proVid.current.currentTime = proVid.current.duration;
+          } else {
+            proVid.current.currentTime = proVid.current.currentTime + SINGLE_FRAME_TIME;
+          }
+          if (framePauseTimer.current != undefined) {
+            clearTimeout(framePauseTimer.current);
+            framePauseTimer.current = undefined;
+          }
+          break;
+        case " ":
+          startOrStopVideo();
+          break;
         //case "ArrowUp":
             // Up pressed
         //    break;
@@ -145,6 +148,11 @@ export default function Form() {
     proVid.current.addEventListener('ended', () => {
       handleVideoEnd();
     })
+
+    proVid.current.addEventListener('play', () => {
+      setInPauseTime(false);
+      isPausing.current = false;
+    });
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return // required for FireFox -- speech API does not work
@@ -242,19 +250,18 @@ export default function Form() {
   }, [proRate])
 
   const loadSegmentation = () => {
-      //const landmarkContainer = landmarkGridContainerRef.current;
-      //const grid = new LandmarkGrid(landmarkContainer);
-      const canvasCtx = canvasRef.current.getContext('2d');
-      //const lmCtx = landmarkCanvasRef.current.getContext('2d');
-      let counter = 0;
 
-      proVid.current.addEventListener('play', () => {
-        //lmCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
-        videoPlayStartTime.current = new Date();
-        setInPauseTime(false);
-        isPausing.current = false;
-        //console.log("video play time: ", videoPlayStartTime.current);
-      });
+      if((navigator.userAgent.indexOf("Safari") != -1 || navigator.userAgent.indexOf("Firefox") != -1) && navigator.userAgent.indexOf("Chrome") == -1) {
+        // safari does not properly load segmentation
+        console.log("unsupported browser");
+        //console.log("navigator.userAgent: ", navigator.userAgent);
+        shouldUseMediaPipe.current = false;
+        setWebcamLoaded(true);
+        return
+      }
+
+      const canvasCtx = canvasRef.current.getContext('2d');
+      let counter = 0;
 
       function onResults(results) {
         if (!results.poseLandmarks) {
@@ -746,7 +753,6 @@ export default function Form() {
   return (
     <div className={styles.container}>
       <div className={styles.instructionsContainer}>
-        Current supported browsers: Chrome, FireFox <br />
         This app is designed for use on a large screen, i.e. laptop or computer with webcam. <br />
         Voice commands include: Play, Pause, Stop, Speed Up, Slow Down, Restart, and Start Over. <br />
         Please send feedback to: <a href="mailto: joelmasters@gmail.com">joelmasters@gmail.com</a>

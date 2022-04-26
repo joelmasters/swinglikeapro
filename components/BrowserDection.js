@@ -21,8 +21,9 @@ export default function BrowserDetection() {
     } else if(navigator.userAgent.indexOf("Safari") != -1) {
       setBrowser('Safari');
       setShowWarning(true);
-    } else if(navigator.userAgent.indexOf("Firefox") != -1 ) {
+    } else if(navigator.userAgent.indexOf("Firefox") != -1) {
       setBrowser('Firefox');
+      setShowWarning(true);
     } else if((navigator.userAgent.indexOf("MSIE") != -1 ) || (!!document.documentMode == true )) {
       setBrowser('IE'); 
       setShowWarning(true);
@@ -32,16 +33,19 @@ export default function BrowserDetection() {
    }
   }
 
-  if (showWarning) {
-    return (
-      <Alert variant="warning" onClose={() => setShowWarning(false)} dismissible>
-        <p>
-          Warning: your browser ({browser}) is currently unsupported. Functionality may be limited.<br />
-          Currently support browsers are: Chrome and Firefox.
-        </p>
-      </Alert>
-    );
-  } else {
-    return null
-  }
+  
+  return (
+    <>
+      { showWarning ? 
+        <Alert variant="warning" onClose={() => setShowWarning(false)} dismissible>
+          <Alert.Heading>Warning: your browser ({browser}) is currently unsupported.</Alert.Heading>
+          <p>
+            Functionality may be limited. For best results, use one of the following browsers: Chrome
+          </p>
+        </Alert>
+        :
+        ''
+      }
+    </>
+  );
 }
