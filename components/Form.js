@@ -19,6 +19,7 @@ export default function Form() {
   const PAUSE_TIME = 3500; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
+  const HEIGHT_WIDTH_RATIO = 1.33; 
 
   const router = useRouter();
 
@@ -26,6 +27,7 @@ export default function Form() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const landmarkCanvasRef = useRef(null);
+  const errorCanvasRef = useRef(null);
   //const landmarkGridContainerRef = useRef(null);
   const progressBar = useRef(null);
   const pauseBar = useRef(null);
@@ -268,20 +270,26 @@ export default function Form() {
           return;
         }
         if (isPlayingBack.current === true) return;
-      
+
+        drawSegmentedImageOnCanvas(canvasCtx, results, canvasRef.current);
+
+        /*
+        const X_OFFSET = (canvasRef.current.width - 
+            canvasRef.current.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
+
         canvasCtx.save();
         // Only overwrite missing pixels.
         canvasCtx.globalCompositeOperation = 'destination-atop';
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(results.image, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
         canvasCtx.globalCompositeOperation = 'destination-in';
-        canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        canvasCtx.drawImage(results.segmentationMask, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
         //canvasCtx.restore();
         
-        canvasCtx.globalCompositeOperation = 'source-over';
+        //canvasCtx.globalCompositeOperation = 'source-over';
         //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
         //drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
-        canvasCtx.restore();
+        canvasCtx.restore();*/
         
         //lmCtx.globalCompositeOperation = 'source-over';
         /*if (counter % 50 === 0) {
@@ -382,6 +390,19 @@ export default function Form() {
     }
   }
 
+  const drawSegmentedImageOnCanvas = (ctx, data, refToCanvas) => {
+    const X_OFFSET = (refToCanvas.width - 
+      refToCanvas.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-atop';
+    ctx.clearRect(0, 0, refToCanvas.width, refToCanvas.height);
+    ctx.drawImage(data.image, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(data.segmentationMask, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+    ctx.restore();  
+  }
+
   const playbackRecording = () => {
 
     // this function plays back what was recorded from the previous throw
@@ -477,13 +498,9 @@ export default function Form() {
           return
         }
 
-        canvasCtx.save();
-        canvasCtx.globalCompositeOperation = 'destination-atop';
-        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.drawImage(resultsRecorded.current[playbackCounter.current].image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.globalCompositeOperation = 'destination-in';
-        canvasCtx.drawImage(resultsRecorded.current[playbackCounter.current].segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.restore();
+        drawSegmentedImageOnCanvas(canvasCtx, 
+            resultsRecorded.current[playbackCounter.current], 
+            canvasRef.current);
         
         if (proVid.current.paused === true) {
           return
@@ -493,6 +510,35 @@ export default function Form() {
 
       }, playbackFrameRateTime)
     }
+
+    // plots error chart on canvas
+    const errorCtx = errorCanvasRef.current.getContext('2d');
+    errorCtx.lineWidth = 3;
+    let grad = errorCtx.createLinearGradient(0, 0, 0, errorCanvasRef.current.height);
+    grad.addColorStop(0, "red");
+    grad.addColorStop(0.5, "yellow");
+    grad.addColorStop(1, "green");
+    errorCtx.strokeStyle = grad; //'#00FF00';
+
+    errorCtx.beginPath();
+    if (proOrientation === -1) {
+      errorCtx.moveTo(Math.floor(errorCanvasRef.current.width-gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
+    } else {
+      errorCtx.moveTo(Math.floor(gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
+    }
+    
+    for (let i = 1; i < proData.current.length; i++) {
+      let chartX;
+      if (proOrientation === -1) {
+        chartX = Math.floor(errorCanvasRef.current.width - gridXStep*i)
+      } else {
+        chartX = Math.floor(gridXStep*i)
+      }
+      errorCtx.lineTo(chartX, Math.floor(errorCanvasRef.current.height-diffFrames[i]/100*errorCanvasRef.current.height))
+      //console.log(Math.floor(gridXStep)*i + ", " + Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height));
+    }
+    errorCtx.stroke();
+
     if (!proPlaybackTimer) {
 
       let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
@@ -503,6 +549,8 @@ export default function Form() {
           clearInterval(proPlaybackTimer);
           landmarkCtx.globalCompositeOperation = 'destination-atop';
           landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
+          errorCtx.globalCompositeOperation = 'destination-atop';
+          errorCtx.clearRect(0, 0, errorCanvasRef.current.width, errorCanvasRef.current.height);
           return
         }
         landmarkCtx.save();
@@ -546,32 +594,34 @@ export default function Form() {
                 0,
                 2*Math.PI 
             )
+            
           landmarkCtx.fill();
         }
 
-        landmarkCtx.lineWidth = 3;
-        let grad = landmarkCtx.createLinearGradient(0, 0, 0, landmarkCanvasRef.current.height);
-        grad.addColorStop(0, "yellow");
-        grad.addColorStop(1, "green");
-        landmarkCtx.strokeStyle = grad; //'#00FF00';
-
         landmarkCtx.beginPath();
-        if (proOrientation === -1) {
-          landmarkCtx.moveTo(Math.floor(landmarkCanvasRef.current.width-gridXStep), Math.floor(landmarkCanvasRef.current.height-diffFrames[0]/100*landmarkCanvasRef.current.height))
-        } else {
-          landmarkCtx.moveTo(Math.floor(gridXStep), Math.floor(landmarkCanvasRef.current.height-diffFrames[0]/100*landmarkCanvasRef.current.height))
-        }
+        landmarkCtx.strokeStyle = '#CCCCCC';
+        landmarkCtx.lineWidth = 1;
         
-        for (let i = 1; i < proPlaybackCounter.current; i++) {
-          let chartX;
-          if (proOrientation === -1) {
-            chartX = Math.floor(landmarkCanvasRef.current.width - gridXStep*i)
-          } else {
-            chartX = Math.floor(gridXStep*i)
-          }
-          landmarkCtx.lineTo(chartX, Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height))
-          //console.log(Math.floor(gridXStep)*i + ", " + Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height));
+        let xLoc;
+        if (proOrientation === -1) {
+          xLoc = Math.floor(errorCanvasRef.current.width - gridXStep*proPlaybackCounter.current);
+        } else {
+          xLoc = Math.floor(gridXStep*proPlaybackCounter.current);
         }
+        /*landmarkCtx.arc(
+            xLoc, 
+            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height),
+            5,
+            0,
+            2*Math.PI);*/
+
+        const LINE_LENGTH = 12;
+        landmarkCtx.moveTo(
+            xLoc, 
+            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)-LINE_LENGTH/2);
+        landmarkCtx.lineTo(
+            xLoc, 
+            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)+LINE_LENGTH/2);
         landmarkCtx.stroke();
 
         landmarkCtx.restore();
@@ -905,13 +955,19 @@ export default function Form() {
           <canvas 
             className={styles.outputCanvas}
             ref={canvasRef}
-            width={videoHeight*1.33}
+            width={videoWidth}
             height={videoHeight}>  
           </canvas>
           <canvas
             className={styles.outputCanvas}
             ref={landmarkCanvasRef}
-            width={videoHeight*1.33}
+            width={videoWidth}
+            height={videoHeight}>
+          </canvas>
+          <canvas
+            className={styles.outputCanvas}
+            ref={errorCanvasRef}
+            width={videoWidth}
             height={videoHeight}>
           </canvas>
           {/*<div 
