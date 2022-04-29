@@ -15,7 +15,7 @@ export default function BrowserDetection() {
       setShowWarning(true);
     } else if(navigator.userAgent.indexOf("Edg") != -1 ) {
       setBrowser('Edge');
-      setShowWarning(true);
+      //setShowWarning(true);
     } else if(navigator.userAgent.indexOf("Chrome") != -1 ) {
       setBrowser('Chrome');
     } else if(navigator.userAgent.indexOf("Safari") != -1) {
@@ -40,7 +40,7 @@ export default function BrowserDetection() {
         <Alert variant="warning" onClose={() => setShowWarning(false)} dismissible>
           <Alert.Heading>Warning: your browser ({browser}) is currently unsupported.</Alert.Heading>
           <p>
-            Functionality may be limited. For best results, use one of the following browsers: Chrome
+            Functionality may be limited. For best results, use one of the following browsers: Chrome or Edge
           </p>
         </Alert>
         :
