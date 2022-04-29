@@ -258,6 +258,7 @@ export default function Form() {
         //console.log("navigator.userAgent: ", navigator.userAgent);
         shouldUseMediaPipe.current = false;
         setWebcamLoaded(true);
+        loadCamera();
         return
       }
 
@@ -266,53 +267,20 @@ export default function Form() {
 
       function onResults(results) {
         if (!results.poseLandmarks) {
-          //grid.updateLandmarks([]);
           return;
         }
         if (isPlayingBack.current === true) return;
 
         drawSegmentedImageOnCanvas(canvasCtx, results, canvasRef.current);
 
-        /*
-        const X_OFFSET = (canvasRef.current.width - 
-            canvasRef.current.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
-
-        canvasCtx.save();
-        // Only overwrite missing pixels.
-        canvasCtx.globalCompositeOperation = 'destination-atop';
-        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        canvasCtx.drawImage(results.image, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
-        canvasCtx.globalCompositeOperation = 'destination-in';
-        canvasCtx.drawImage(results.segmentationMask, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
-        //canvasCtx.restore();
-        
-        //canvasCtx.globalCompositeOperation = 'source-over';
-        //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
-        //drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
-        canvasCtx.restore();*/
-        
-        //lmCtx.globalCompositeOperation = 'source-over';
-        /*if (counter % 50 === 0) {
-          lmCtx.save();
-          drawLandmarks(lmCtx, results.poseLandmarks,{color: '#FF0000', opacity: 0.25, lineWidth: 2});
-          lmCtx.restore();
-        }*/
-
         if (!proVid.current.paused) {
           if (resultsRecorded.current === []) {
             resultsStartTime.current = new Date();
           }
-          //console.log("adding results");
           resultsRecorded.current.push(results);
         } 
 
         counter++;
-
-        // TODO: match up frames with proVideo -- offset delay or something? Is this affected by CPU speed?
-        // add in pause time for resetting back to start with live camera
-
-      
-        //grid.updateLandmarks(results.poseWorldLandmarks);
       }
       
       const pose = new Pose({locateFile: (file) => {
@@ -363,11 +331,47 @@ export default function Form() {
       camera.start();
   }
 
+  const loadCamera = () => {    
+    let ctx = canvasRef.current.getContext('2d');
+
+    console.log("loading camera");
+
+    const camera = new Camera(webcamRef.current.video, {
+      onFrame: async () => {
+        await captureScreenshot();
+      }
+    });
+    camera.start();
+
+    webcamRef.current.video.style.visibility = "hidden";
+
+    let X_OFFSET = 0;
+    const captureScreenshot = () => {
+
+      if (isPlayingBack.current === true) return;
+
+      X_OFFSET = (canvasRef.current.width - 
+        canvasRef.current.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.drawImage(webcamRef.current.video, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
+      
+      // TODO: Check if this is working
+      let img = new Image();
+      img.src = canvasRef.current.toDataURL();
+      ctx.restore(); 
+      if (!proVid.current.paused) {
+        resultsRecorded.current.push({image: img});
+      } 
+    }
+  }
+
   useEffect(() => {
     if (shouldUseMediaPipe.current === false) {
-      if (webcamRef.current) {
+      /*if (webcamRef.current) {
         webcamRef.current.video.style.visibility = "visible";
-      }
+      }*/
     }
   }, [webcamLoaded])
 
@@ -394,12 +398,17 @@ export default function Form() {
     const X_OFFSET = (refToCanvas.width - 
       refToCanvas.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
 
+    // TODO: This is squashing results horizontally when not using segmentation
     ctx.save();
     ctx.globalCompositeOperation = 'destination-atop';
     ctx.clearRect(0, 0, refToCanvas.width, refToCanvas.height);
-    ctx.drawImage(data.image, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(data.segmentationMask, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+    if (data.hasOwnProperty('segmentationMask')) {
+      ctx.drawImage(data.image, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(data.segmentationMask, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+    } else {
+      ctx.drawImage(data.image, 0, 0, refToCanvas.width, refToCanvas.height);
+    }
     ctx.restore();  
   }
 
@@ -438,13 +447,11 @@ export default function Form() {
     // proVidFrame[1] = playbackFrame[1*1.4] = playbackFrame[1.4];
 
     const playbackRatio = resultsRecorded.current.length / numProPoseFrames;
-    let [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
-    
-    setAccuracyValue(accuracyScore);
 
-    //console.log("greatestDiffLandmark: ", greatestDiffLandmark);
-    //console.log("greatestDiffFrames: ", greatestDiffFrames);
-    //console.log("diffFrames: ", diffFrames);
+    let greatestDiffLandmark = '';
+    let greatestDiffFrames = [];
+    let diffFrames = [];
+    let accuracyScore = 0.0;
 
     const LANDMARK_NAMES = [
       'Left Shoulder',
@@ -461,13 +468,6 @@ export default function Form() {
       'Right Ankle',
     ]
 
-    if (greatestDiffLandmark === -1) {
-      console.log("no diff landmark found");
-    } else {
-      let greatestDiffLandmarkName = LANDMARK_NAMES[greatestDiffLandmark];
-      setFocusArea(greatestDiffLandmarkName);
-      //console.log("greatestDiffLandmarkName: ", greatestDiffLandmarkName);
-    }
 
     // set the video time back to zero
     proVid.current.currentTime = 0;
@@ -482,6 +482,52 @@ export default function Form() {
 
     const gridXStep = landmarkCanvasRef.current.width / numProPoseFrames;
     framePauseTimer.current = undefined;
+
+    const errorCtx = errorCanvasRef.current.getContext('2d');
+
+    if (resultsRecorded.current[0].hasOwnProperty('segmentationMask')) {
+      // not just captured frame
+
+      [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+      setAccuracyValue(accuracyScore);
+
+      if (greatestDiffLandmark === -1) {
+        console.log("no diff landmark found");
+      } else {
+        let greatestDiffLandmarkName = LANDMARK_NAMES[greatestDiffLandmark];
+        setFocusArea(greatestDiffLandmarkName);
+        //console.log("greatestDiffLandmarkName: ", greatestDiffLandmarkName);
+      }  
+
+      // plots error chart on canvas
+      
+      errorCtx.lineWidth = 3;
+      let grad = errorCtx.createLinearGradient(0, 0, 0, errorCanvasRef.current.height);
+      grad.addColorStop(0, "red");
+      grad.addColorStop(0.5, "yellow");
+      grad.addColorStop(1, "green");
+      errorCtx.strokeStyle = grad; //'#00FF00';
+
+      errorCtx.beginPath();
+      if (proOrientation === -1) {
+        errorCtx.moveTo(Math.floor(errorCanvasRef.current.width-gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
+      } else {
+        errorCtx.moveTo(Math.floor(gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
+      }
+      
+      for (let i = 1; i < proData.current.length; i++) {
+        let chartX;
+        if (proOrientation === -1) {
+          chartX = Math.floor(errorCanvasRef.current.width - gridXStep*i)
+        } else {
+          chartX = Math.floor(gridXStep*i)
+        }
+        errorCtx.lineTo(chartX, Math.floor(errorCanvasRef.current.height-diffFrames[i]/100*errorCanvasRef.current.height))
+        //console.log(Math.floor(gridXStep)*i + ", " + Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height));
+      }
+      errorCtx.stroke();
+    }
+
 
     // play back the previous recorded form
     if (!playbackTimer) {
@@ -511,37 +557,8 @@ export default function Form() {
       }, playbackFrameRateTime)
     }
 
-    // plots error chart on canvas
-    const errorCtx = errorCanvasRef.current.getContext('2d');
-    errorCtx.lineWidth = 3;
-    let grad = errorCtx.createLinearGradient(0, 0, 0, errorCanvasRef.current.height);
-    grad.addColorStop(0, "red");
-    grad.addColorStop(0.5, "yellow");
-    grad.addColorStop(1, "green");
-    errorCtx.strokeStyle = grad; //'#00FF00';
-
-    errorCtx.beginPath();
-    if (proOrientation === -1) {
-      errorCtx.moveTo(Math.floor(errorCanvasRef.current.width-gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
-    } else {
-      errorCtx.moveTo(Math.floor(gridXStep), Math.floor(errorCanvasRef.current.height-diffFrames[0]/100*errorCanvasRef.current.height))
-    }
-    
-    for (let i = 1; i < proData.current.length; i++) {
-      let chartX;
-      if (proOrientation === -1) {
-        chartX = Math.floor(errorCanvasRef.current.width - gridXStep*i)
-      } else {
-        chartX = Math.floor(gridXStep*i)
-      }
-      errorCtx.lineTo(chartX, Math.floor(errorCanvasRef.current.height-diffFrames[i]/100*errorCanvasRef.current.height))
-      //console.log(Math.floor(gridXStep)*i + ", " + Math.floor(landmarkCanvasRef.current.height-diffFrames[i]/100*landmarkCanvasRef.current.height));
-    }
-    errorCtx.stroke();
-
     if (!proPlaybackTimer) {
 
-      let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
       const BOX_PADDING = 10;
 
       proPlaybackTimer = setInterval(() => {
@@ -553,6 +570,7 @@ export default function Form() {
           errorCtx.clearRect(0, 0, errorCanvasRef.current.width, errorCanvasRef.current.height);
           return
         }
+
         landmarkCtx.save();
         landmarkCtx.globalCompositeOperation = 'destination-atop';
         landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
@@ -560,85 +578,91 @@ export default function Form() {
         //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
         //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
 
-        if (squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark] && proData.current[proPlaybackCounter.current][greatestDiffLandmark]) {
-          let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-          let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-          let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
-          let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+        if (shouldUseMediaPipe.current === true) {
 
-          let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
-          let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
-          let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
-          let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
+          let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
 
-          // TODO: Box not showing up
-          landmarkCtx.strokeStyle = '#00FF00';
-          landmarkCtx.lineWidth = 5;
-          landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-          landmarkCtx.beginPath();
-          landmarkCtx.fillStyle = '#FF0000';
-          landmarkCtx.arc(
-                squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-                squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
-                5,
-                0,
-                2*Math.PI 
-            )
-          landmarkCtx.fill();
-          landmarkCtx.beginPath();
-          landmarkCtx.fillStyle = '#FFFF00';
-          landmarkCtx.arc(
-                proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
-                proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
-                5,
-                0,
-                2*Math.PI 
-            )
+          if (squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark] && proData.current[proPlaybackCounter.current][greatestDiffLandmark]) {
+            // pose estimation has run and computed results
+            let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+            let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
+            let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+            let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+
+            let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
+            let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
+            let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
+            let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
+
+            // TODO: Box not showing up
+            landmarkCtx.strokeStyle = '#00FF00';
+            landmarkCtx.lineWidth = 5;
+            landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+            landmarkCtx.beginPath();
+            landmarkCtx.fillStyle = '#FF0000';
+            landmarkCtx.arc(
+                  squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+                  squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+                  5,
+                  0,
+                  2*Math.PI 
+              )
+            landmarkCtx.fill();
+            landmarkCtx.beginPath();
+            landmarkCtx.fillStyle = '#FFFF00';
+            landmarkCtx.arc(
+                  proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+                  proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
+                  5,
+                  0,
+                  2*Math.PI 
+              )
+              
+            landmarkCtx.fill();
+
+            landmarkCtx.beginPath();
+            landmarkCtx.strokeStyle = '#CCCCCC';
+            landmarkCtx.lineWidth = 1;
             
-          landmarkCtx.fill();
-        }
-
-        landmarkCtx.beginPath();
-        landmarkCtx.strokeStyle = '#CCCCCC';
-        landmarkCtx.lineWidth = 1;
-        
-        let xLoc;
-        if (proOrientation === -1) {
-          xLoc = Math.floor(errorCanvasRef.current.width - gridXStep*proPlaybackCounter.current);
-        } else {
-          xLoc = Math.floor(gridXStep*proPlaybackCounter.current);
-        }
-        /*landmarkCtx.arc(
-            xLoc, 
-            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height),
-            5,
-            0,
-            2*Math.PI);*/
-
-        const LINE_LENGTH = 12;
-        landmarkCtx.moveTo(
-            xLoc, 
-            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)-LINE_LENGTH/2);
-        landmarkCtx.lineTo(
-            xLoc, 
-            Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)+LINE_LENGTH/2);
-        landmarkCtx.stroke();
-
-        landmarkCtx.restore();
-
-
-        // pause when greatest diff frame is reached
-        if (greatestDiffFrames.includes(proPlaybackCounter.current)) {
-          //console.log("pausing at frame: ", proPlaybackCounter.current);
-          if (framePauseTimer.current === undefined) {
-            if (!proVid.current.paused) {
-              proVid.current.pause();
+            let xLoc;
+            if (proOrientation === -1) {
+              xLoc = Math.floor(errorCanvasRef.current.width - gridXStep*proPlaybackCounter.current);
+            } else {
+              xLoc = Math.floor(gridXStep*proPlaybackCounter.current);
             }
-            framePauseTimer.current = setTimeout(() => {
-              proVid.current.play();
-            }, 3000);
+            /*landmarkCtx.arc(
+                xLoc, 
+                Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height),
+                5,
+                0,
+                2*Math.PI);*/
+
+            const LINE_LENGTH = 12;
+            landmarkCtx.moveTo(
+                xLoc, 
+                Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)-LINE_LENGTH/2);
+            landmarkCtx.lineTo(
+                xLoc, 
+                Math.floor(landmarkCanvasRef.current.height-diffFrames[proPlaybackCounter.current]/100*landmarkCanvasRef.current.height)+LINE_LENGTH/2);
+            landmarkCtx.stroke();
+
+            landmarkCtx.restore();
+
+
+            // pause when greatest diff frame is reached
+            if (greatestDiffFrames.includes(proPlaybackCounter.current)) {
+              //console.log("pausing at frame: ", proPlaybackCounter.current);
+              if (framePauseTimer.current === undefined) {
+                if (!proVid.current.paused) {
+                  proVid.current.pause();
+                }
+                framePauseTimer.current = setTimeout(() => {
+                  proVid.current.play();
+                }, 3000);
+              }
+              //console.log()
+            }
           }
-          //console.log()
         }
 
         if (proVid.current.paused === true) {
