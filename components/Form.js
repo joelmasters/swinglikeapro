@@ -73,6 +73,7 @@ export default function Form() {
   const proPlaybackCounter = useRef(0);
   const framePauseTimer = useRef(undefined);
   const [accuracyValue, setAccuracyValue] = useState(0.0);
+  const [videoConstraints, setVideoConstraints] = useState({facingMode: "user"});
 
   useEffect(()=> {
     // set the height of the webcam video to be equal to the height of the provideo after a delay of 2s
@@ -300,6 +301,10 @@ export default function Form() {
       var sendCounter = 0;
       let watchdogTimer = undefined;
 
+      if (camera) {
+        camera.stop();
+      }
+
       const camera = new Camera(webcamRef.current.video, {
         onFrame: async () => {
           if (sendCounter === 1) {
@@ -498,7 +503,7 @@ export default function Form() {
               proVid.current.scrollHeight*HEIGHT_WIDTH_RATIO.current, 
               playbackRatio);
 
-      console.log("accuracyScore: ", accuracyScore);
+      //console.log("accuracyScore: ", accuracyScore);
       setAccuracyValue(accuracyScore);
 
       if (greatestDiffLandmark === -1) {
@@ -833,6 +838,26 @@ export default function Form() {
     }
   }
 
+  useEffect(() => {
+    /*navigator.getUserMedia(function(stream) { 
+      stream.getTracks()[0].stop();
+    }, function(e) { 
+      console.log("background error : " + e.name);
+    }); */
+
+    //console.log(navigator);
+
+    if (camSelected) {
+      setVideoConstraints({deviceId: {exact: camSelected}});
+    } else {
+      setVideoConstraints({facingMode: "user"});
+    }
+  }, [camSelected])
+
+  useEffect(() => {
+    //console.log("videoConstraints: ", videoConstraints);
+  }, [videoConstraints])
+
   return (
     <div className={styles.container}>
       <div className={styles.instructionsContainer}>
@@ -921,7 +946,7 @@ export default function Form() {
                   </button>
               ) : '' }
             </td>
-              </tr>*/}
+          </tr>*/}
       </tbody>
       </table>
       </div>
@@ -974,7 +999,7 @@ export default function Form() {
               ref={webcamRef}
               audio={false}
               height={videoHeight}
-              videoConstraints={{facingMode: "user", deviceId: camSelected }}
+              videoConstraints={videoConstraints} //{{facingMode: "user", deviceId: camSelected }}
               onUserMedia={() => {
                 console.log('connected to user media'); 
                 loadSegmentation(); 
