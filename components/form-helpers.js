@@ -36,7 +36,7 @@ const filterResults = (youResults) => {
   return youResultsFiltered;
 }
 
-const findGreatestDifference = (proResults, youResults, ratio) => {
+const findGreatestDifference = (proResults, proWidth, proHeight, youResults, youWidth, ratio) => {
 
   /*  Pose landmarks:
          0-10 face - X
@@ -69,18 +69,41 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
   let cumulativeErrors = [];
   let cumulativeFrameErrors = [];
   let numberOfTotalLandmarks = 0;
-  const ACCEPTANCE_ERROR = 0.1; // 10%
+
+  // TODO: Verify this accuracy
+
+  const ACCEPTANCE_ERROR = 0.10*proWidth + 0.10*proHeight; // 20% in either direction per landmark
   let numberOfErrorLandmarks = 0;
 
   let resultsA = [];
   let resultsB = [];
+  let widthA = 0;
+  let widthB = 0;
+  let height = proHeight;
+  let widthOffsetA = 0;
+  let widthOffsetB = 0;
 
   if (ratio >= 1) { // more frames recorded from webcam than in pro video
     resultsA = [...proResults]; // number of frames in results A < number of frames in results B
+    widthA = proWidth;
     resultsB = [...youResultsFiltered];
+    widthB = youWidth;
+    if (proWidth > youWidth) {
+      widthOffsetB = (proWidth-youWidth)/2;
+    } else {
+      widthOffsetA = (youWidth-proWidth)/2;
+    }
   } else { // more frames in pro video than recorded from webcam
     resultsA = [...youResultsFiltered];
+    widthA = youWidth;
     resultsB = [...proResults];
+    widthB = proWidth;
+    if (proWidth > youWidth) {
+      widthOffsetA = (proWidth-youWidth)/2;
+    } else {
+      widthOffsetB = (youWidth-proWidth)/2;
+    }
+
   }
 
   for (let i = 0; i < resultsA[0].length; i++) {
@@ -92,15 +115,17 @@ const findGreatestDifference = (proResults, youResults, ratio) => {
   for (let i = 0; i < resultsA.length; i++) { // frame number
     let tempFrameError = 0;
     for (let j = 0; j < resultsA[i].length; j++) { // landmark number
-      let errorX = Math.abs(parseFloat(resultsA[i][j].x - _interpolate(resultsB, i, j, ratio, 'x')));
-      let errorY = Math.abs(parseFloat(resultsA[i][j].y - _interpolate(resultsB, i, j, ratio, 'y')));
+      let errorX = Math.abs(parseFloat(resultsA[i][j].x*widthA + widthOffsetA - _interpolate(resultsB, i, j, ratio, 'x')*widthB + widthOffsetB));
+      let errorY = Math.abs(parseFloat(resultsA[i][j].y*height - _interpolate(resultsB, i, j, ratio, 'y')*height));
       cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorX;
       cumulativeErrors[j] = Math.abs(parseFloat(cumulativeErrors[j])) + errorY;
       tempFrameError += errorX + errorY;
       if (errorX + errorY > ACCEPTANCE_ERROR) {
         numberOfErrorLandmarks++;
+        //console.log("errorX + errorY: ", errorX + errorY);
       }
     }  
+    
     cumulativeFrameErrors.push(tempFrameError);
   }
 

@@ -19,7 +19,7 @@ export default function Form() {
   const PAUSE_TIME = 3500; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
-  const HEIGHT_WIDTH_RATIO = 1.33; 
+  const HEIGHT_WIDTH_RATIO = useRef(1.33); 
 
   const router = useRouter();
 
@@ -82,6 +82,7 @@ export default function Form() {
         setVideoHeight(proVid.current.scrollHeight);
         setVideoWidth(proVid.current.offsetWidth);
         //proVid.current.play();
+        HEIGHT_WIDTH_RATIO.current = webcamRef.current.video.videoWidth / webcamRef.current.video.videoHeight;
       }
     }, 2000);
 
@@ -351,11 +352,11 @@ export default function Form() {
       if (isPlayingBack.current === true) return;
 
       X_OFFSET = (canvasRef.current.width - 
-        canvasRef.current.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
+        canvasRef.current.height*HEIGHT_WIDTH_RATIO.current) / 2; // centers the image in X without stretching
 
       ctx.save();
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      ctx.drawImage(webcamRef.current.video, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO, canvasRef.current.height);
+      ctx.drawImage(webcamRef.current.video, X_OFFSET, 0, canvasRef.current.height*HEIGHT_WIDTH_RATIO.current, canvasRef.current.height);
       
       // TODO: Check if this is working
       let img = new Image();
@@ -396,16 +397,16 @@ export default function Form() {
 
   const drawSegmentedImageOnCanvas = (ctx, data, refToCanvas) => {
     const X_OFFSET = (refToCanvas.width - 
-      refToCanvas.height*HEIGHT_WIDTH_RATIO) / 2; // centers the image in X without stretching
+      refToCanvas.height*HEIGHT_WIDTH_RATIO.current) / 2; // centers the image in X without stretching
 
     // TODO: This is squashing results horizontally when not using segmentation
     ctx.save();
     ctx.globalCompositeOperation = 'destination-atop';
     ctx.clearRect(0, 0, refToCanvas.width, refToCanvas.height);
     if (data.hasOwnProperty('segmentationMask')) {
-      ctx.drawImage(data.image, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+      ctx.drawImage(data.image, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO.current, refToCanvas.height);
       ctx.globalCompositeOperation = 'destination-in';
-      ctx.drawImage(data.segmentationMask, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO, refToCanvas.height);
+      ctx.drawImage(data.segmentationMask, X_OFFSET, 0, refToCanvas.height*HEIGHT_WIDTH_RATIO.current, refToCanvas.height);
     } else {
       ctx.drawImage(data.image, 0, 0, refToCanvas.width, refToCanvas.height);
     }
@@ -488,7 +489,16 @@ export default function Form() {
     if (resultsRecorded.current[0].hasOwnProperty('segmentationMask')) {
       // not just captured frame
 
-      [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = helpers.findGreatestDifference(proData.current, resultsRecorded.current, playbackRatio);
+      [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = 
+          helpers.findGreatestDifference(
+              proData.current, 
+              proVid.current.offsetWidth,
+              proVid.current.scrollHeight, 
+              resultsRecorded.current, 
+              proVid.current.scrollHeight*HEIGHT_WIDTH_RATIO.current, 
+              playbackRatio);
+
+      console.log("accuracyScore: ", accuracyScore);
       setAccuracyValue(accuracyScore);
 
       if (greatestDiffLandmark === -1) {
