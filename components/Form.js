@@ -72,7 +72,7 @@ export default function Form() {
   const playbackCounter = useRef(0);
   const proPlaybackCounter = useRef(0);
   const framePauseTimer = useRef(undefined);
-  const [accuracyValue, setAccuracyValue] = useState(0.0);
+  const [accuracyValue, setAccuracyValue] = useState(-1.0);
   const [videoConstraints, setVideoConstraints] = useState({facingMode: "user"});
 
   useEffect(()=> {
@@ -105,8 +105,8 @@ export default function Form() {
 
     window.addEventListener('keydown', function(event) {
       event.preventDefault();
-      const VID_FPS = 30;
-      const SINGLE_FRAME_TIME = proVid.current.duration/VID_FPS;
+      const VID_FPS = proData.current.length / proVid.current.duration;
+      const SINGLE_FRAME_TIME = 1/VID_FPS;
       let newTime = 0;
 
       switch (event.key) {
@@ -389,7 +389,7 @@ export default function Form() {
       setInPauseTime(true);
       isPausing.current = true;
       setFocusArea('');
-      setAccuracyValue(0.0);
+      setAccuracyValue(-1.0);
       animatePauseBar();
     } else {
       isPlayingBack.current = true;
@@ -403,6 +403,9 @@ export default function Form() {
   const drawSegmentedImageOnCanvas = (ctx, data, refToCanvas) => {
     const X_OFFSET = (refToCanvas.width - 
       refToCanvas.height*HEIGHT_WIDTH_RATIO.current) / 2; // centers the image in X without stretching
+
+    //console.log("refToCanvas.height*HEIGHT_WIDTH_RATIO: ", refToCanvas.height*HEIGHT_WIDTH_RATIO.current);
+    //console.log("webcamRef.current.video.videoWidth: ", webcamRef.current.video.videoWidth);
 
     // TODO: This is squashing results horizontally when not using segmentation
     ctx.save();
@@ -497,7 +500,7 @@ export default function Form() {
       [greatestDiffLandmark, greatestDiffFrames, diffFrames, accuracyScore] = 
           helpers.findGreatestDifference(
               proData.current, 
-              proVid.current.offsetWidth,
+              proVid.current.scrollHeight*(proVid.current.videoWidth/proVid.current.videoHeight),
               proVid.current.scrollHeight, 
               resultsRecorded.current, 
               proVid.current.scrollHeight*HEIGHT_WIDTH_RATIO.current, 
@@ -544,7 +547,7 @@ export default function Form() {
     }
 
 
-    // play back the previous recorded form
+    // ---- play back the previous recorded form ----- //
     if (!playbackTimer) {
       playbackTimer = setInterval(() => {
         
@@ -572,9 +575,12 @@ export default function Form() {
       }, playbackFrameRateTime)
     }
 
+    
+    // ----- play back the pro form, adding min/max box ----- //
     if (!proPlaybackTimer) {
 
       const BOX_PADDING = 10;
+      let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
 
       proPlaybackTimer = setInterval(() => {
         if (proPlaybackCounter.current >= proData.current.length || isPlayingBack.current === false) {
@@ -595,28 +601,72 @@ export default function Form() {
 
         if (shouldUseMediaPipe.current === true) {
 
-          let squashedCurrentResults = helpers.squashResults(proData.current, resultsRecorded.current, playbackRatio);
-
           if (squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark] && proData.current[proPlaybackCounter.current][greatestDiffLandmark]) {
+            //let youOffset = (landmarkCanvasRef.current.width-webcamRef.current.video.videoWidth)/2;
+            let youWidth = landmarkCanvasRef.current.height*HEIGHT_WIDTH_RATIO.current;
+            let youOffset = (landmarkCanvasRef.current.width-youWidth)/2;
+
+            let proWidth = proVid.current.scrollHeight*proVid.current.videoWidth/proVid.current.videoHeight;
+            let proOffset = (landmarkCanvasRef.current.width-proWidth)/2;
+
             // pose estimation has run and computed results
-            let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-            let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x);
-            let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
-            let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y);
+            let minX = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*youWidth + youOffset, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*proWidth + proOffset);
+            let maxX = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*youWidth + youOffset, proData.current[proPlaybackCounter.current][greatestDiffLandmark].x*proWidth + proOffset);
+            let minY = Math.min(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height);
+            let maxY = Math.max(squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height, proData.current[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height);
 
-            let boxX = minX*landmarkCanvasRef.current.width - BOX_PADDING;
-            let boxY = minY*landmarkCanvasRef.current.height - BOX_PADDING;
-            let boxWidth = (maxX - minX)*landmarkCanvasRef.current.width + BOX_PADDING;
-            let boxHeight = (maxY - minY)*landmarkCanvasRef.current.height + BOX_PADDING;
+            let boxX = minX - BOX_PADDING;
+            let boxY = minY - BOX_PADDING;
+            let boxWidth = (maxX - minX) + BOX_PADDING;
+            let boxHeight = (maxY - minY) + BOX_PADDING;
 
-            // TODO: Box not showing up
+            
+            for (let i = 0; i < squashedCurrentResults[proPlaybackCounter.current].length; i++) {
+              // TODO: Test this for accuracy -- why 0.95?
+              let youX = squashedCurrentResults[proPlaybackCounter.current][i].x*youWidth + youOffset;
+              let youY = squashedCurrentResults[proPlaybackCounter.current][i].y*landmarkCanvasRef.current.height;
+              let proX = proData.current[proPlaybackCounter.current][i].x*proWidth + proOffset;
+              let proY = proData.current[proPlaybackCounter.current][i].y*landmarkCanvasRef.current.height;
+
+              landmarkCtx.strokeStyle = 'red';
+              landmarkCtx.lineWidth = 2;
+              landmarkCtx.beginPath();
+              landmarkCtx.moveTo(youX, youY);
+              landmarkCtx.lineTo(proX, proY);
+              landmarkCtx.stroke();
+
+              landmarkCtx.strokeStyle = 'blue';
+              landmarkCtx.fillStyle = 'blue';
+              landmarkCtx.beginPath(); 
+              landmarkCtx.arc(
+                    youX,
+                    youY,
+                    5,
+                    0,
+                    2*Math.PI 
+                )
+              landmarkCtx.fill();
+
+              landmarkCtx.strokeStyle = 'orange';
+              landmarkCtx.fillStyle = 'orange';
+              landmarkCtx.beginPath(); 
+              landmarkCtx.arc(
+                    proX,
+                    proY,
+                    5,
+                    0,
+                    2*Math.PI 
+                )
+              landmarkCtx.fill();
+            }
+
             landmarkCtx.strokeStyle = '#00FF00';
             landmarkCtx.lineWidth = 5;
             landmarkCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
             landmarkCtx.beginPath();
             landmarkCtx.fillStyle = '#FF0000';
             landmarkCtx.arc(
-                  squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*landmarkCanvasRef.current.width,
+                  squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].x*youWidth + youOffset,
                   squashedCurrentResults[proPlaybackCounter.current][greatestDiffLandmark].y*landmarkCanvasRef.current.height,
                   5,
                   0,
@@ -974,7 +1024,7 @@ export default function Form() {
             {focusArea}
           </div>
         }
-        {accuracyValue === 0.0 ? '' : 
+        {accuracyValue === -1.0 ? '' : 
           <div className={styles.accuracyText}>
             {`Score: ${Math.round(accuracyValue*100)}%`}
           </div>
