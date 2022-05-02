@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Alert from 'react-bootstrap/Alert'
+import Alert from 'react-bootstrap/Alert';
 
 export default function BrowserDetection() {
   const [showWarning, setShowWarning] = useState(false);
