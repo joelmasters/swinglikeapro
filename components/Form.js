@@ -10,6 +10,7 @@ import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
 import { poseDataEagle, poseDataEagleMirrored } from './data/poseDataEagle.js';
 import { poseDataRicky, poseDataRickyMirrored } from './data/poseDataRicky.js';
+import { poseDataClemons, poseDataClemonsMirrored } from './data/poseDataClemons.js';
 import helpers from './form-helpers';
 
 export default function Form() {
@@ -850,6 +851,13 @@ export default function Form() {
           proData.current = [...poseDataRickyMirrored];
         }
         break;
+      case('clemons'):
+        if (proOrientation === -1) {
+          proData.current = [...poseDataClemons];
+        } else {
+          proData.current = [...poseDataClemonsMirrored];
+        }
+        break;
       default:
         proData.current = [...poseDataEagle];
         break;
@@ -920,8 +928,9 @@ export default function Form() {
                 id="pro-select" 
                 value={proSelection}
                 onChange={proVidSourceChange}>
-          <option value="eagle">Eagle McMahon</option>
-          <option value="ricky">Ricky Wysocki</option>
+          <option value="eagle">Eagle McMahon (Backhand)</option>
+          <option value="ricky">Ricky Wysocki (Backhand)</option>
+          <option value="clemons">Chris Clemons (Forehand)</option>
           {/*<option value="kajiyama">Manabu Kajiyama</option>*/}
         </select>
         <table className={styles.optionsTable}>

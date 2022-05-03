@@ -235,7 +235,7 @@ const _normalizeArray = (arr, maxPossibleError) => {
 
 /*
 
-poseDataEagle.map(x => x.map(x => { let y = Object.assign({x: 1-y.x}, x); return y}))
+poseDataClemons.map(frame => frame.map(landmark => { let z = 1-landmark.x; let y = Object.assign(landmark, {x: z}); return y}))
 
 */
 

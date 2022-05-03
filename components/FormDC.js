@@ -48,12 +48,13 @@ export default function Form() {
 
     proVid.current.addEventListener('play', () => {
       if (numRuns.current === 0) {
-        recordCanvas();
+        //recordCanvas();
       }
     });
 
     proVid.current.addEventListener('ended', (e) => {
       if (numRuns.current < 1) {
+        console.log("run: ", numRuns.current);
         resultsAll.current.push(resultsRecorded.current);
         resultsRecorded.current = [];
         proVid.current.play();
@@ -62,7 +63,7 @@ export default function Form() {
         // get only the poseLandmarks, and omit 0-10 since these are facial features
         // omit first index, since it is undefined for most runs
         let dataToWrite = resultsAll.current.map(row => 
-          row.slice(1).map(x => {
+          row.slice(2).map(x => {
             let first = x.poseLandmarks.slice(11, 17);
             let second = x.poseLandmarks.slice(23, 29);
 
@@ -106,6 +107,7 @@ export default function Form() {
         32: right_foot_index - X
         */
 
+        console.log("dataToWrite: ", dataToWrite);
         let lmAveragesTotal = [];
         // dataToWrite = [run[frame[landmark{}]]
         for (let landmark = 0; landmark < NUM_LANDMARKS; landmark++) {
@@ -152,6 +154,9 @@ export default function Form() {
         console.log(lmAveragesInverted);
         console.log(segmentationMasks);
         console.log(imgs);
+
+        let lmAveragesMirrored = lmAveragesInverted.map(frame => frame.map(landmark => { let z = 1-landmark.x; let y = Object.assign(landmark, {x: z}); return y}))
+        console.log(lmAveragesMirrored);
       }})
 
 
@@ -177,13 +182,14 @@ export default function Form() {
         }
         //canvasCtx.restore();
         
-        //canvasCtx.globalCompositeOperation = 'source-over';
-        //drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
-        //drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
+        canvasCtx.globalCompositeOperation = 'source-over';
+        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
+        drawLandmarks(canvasCtx, results.poseLandmarks,{color: '#FF0000', lineWidth: 2});
         canvasCtx.restore();
 
         if (!proVid.current.paused) {
           resultsRecorded.current.push(results);
+          //console.log("resultsRecorded.current", resultsRecorded.current);
         } 
 
         counter++;
@@ -283,9 +289,9 @@ export default function Form() {
                 opacity:proOpacity + '%',
                 transform: 'scaleX(' + proOrientation + ')',
               }}>
-        <source src={"/videos/eagle.webm"}
+        <source src={"/videos/clemons.webm"}
             type="video/webm" />
-        <source src={"/videos/eagle.mp4"}
+        <source src={"/videos/clemons.mp4"}
             type="video/mp4" />
       </video>
       <br />
@@ -293,7 +299,7 @@ export default function Form() {
         className={styles.outputCanvas}
         style={{
           position: 'relative',
-          transform: 'scaleX(-1)'
+          transform: 'translateX(-50%) scaleX(-1)'
         }}
         ref={canvasRef}
         width={videoWidth}
