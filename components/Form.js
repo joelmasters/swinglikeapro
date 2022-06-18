@@ -13,9 +13,7 @@ import { poseDataClemons, poseDataClemonsMirrored } from './data/poseDataClemons
 import helpers from './form-helpers';
 
 export default function Form() {
-  // TODO: segment proVideo
-  //      re-perform segmentation on canvas size change
-
+  
   const PAUSE_TIME = 3500; // ms to pause at end of video before looping
   const SPEECH_DELAY_TIME = 0.5; // delay in seconds for video
   const SPEECH_END_ITERATIONS = 10; // if no speech has been detected for 10 minutes, stop 
@@ -38,8 +36,6 @@ export default function Form() {
 
   const [videoHeight, setVideoHeight] = useState(0);
   const [videoWidth, setVideoWidth] = useState(0);
-  const [canvasHeight, setCanvasHeight] = useState(0);
-  const [canvasWidth, setCanvasWidth] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
   const proData = useRef([...poseDataEagle]);
   const [proOpacity, setProOpacity] = useState(50);
@@ -48,10 +44,7 @@ export default function Form() {
   const [camOrientation, setCamOrientation] = useState(-1);
   const [proRate, setProRate] = useState(50);
   const [stepped, setStepped] = useState(false);
-  const [stepTimer, setStepTimer] = useState(undefined);
   const [stepTime, setStepTime] = useState(5);
-  const [numberOfSteps, setNumberOfSteps] = useState(7);
-  const [runningAnimation, setRunningAnimation] = useState(undefined);
   const [seekWidth, setSeekWidth] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [numSpeechRestarts, setNumSpeechRestarts] = useState(0);

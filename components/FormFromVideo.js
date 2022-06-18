@@ -29,6 +29,10 @@ import Button from 'react-bootstrap/Button';
 
 export default function FormFromVideo() {
   const PLAYBACK_BARS_HEIGHT = useRef(120);
+  const PRO_VID_HEIGHT = 480;
+  const PRO_VID_WIDTH = 720;
+  const YOU_VID_HEIGHT = 480;
+  const YOU_VID_WIDTH = 720;
 
   const mainCanvasRef = useRef(null);
   const proVid = useRef(null);
@@ -39,8 +43,8 @@ export default function FormFromVideo() {
   const youSeekBar = useRef(null);
   const allSeekBar = useRef(null);
 
-  const proVidAttributes = useRef({height: 480, width: 720, x: 0, y: 0});
-  const youVidAttributes = useRef({height: 480, width: 720, x: 0, y: 0});
+  const proVidAttributes = useRef({height: PRO_VID_HEIGHT, width: PRO_VID_WIDTH, x: 0, y: 0});
+  const youVidAttributes = useRef({height: YOU_VID_HEIGHT, width: YOU_VID_WIDTH, x: 0, y: 0});
   const proOpacityRef = useRef(50);
   const proOrientationRef = useRef(-1);
   const mouseDownPosition = useRef({x: undefined, y: undefined});
@@ -49,6 +53,7 @@ export default function FormFromVideo() {
   const youMSPerFrame = useRef(undefined);
 
   const [proOpacity, setProOpacity] = useState(50);
+  const [proScale, setProScale] = useState(100);
   const [proOrientation, setProOrientation] = useState(-1);
   const [proSelection, setProSelection] = useState('eagle');
   const [activeSelect, setActiveSelect] = useState('pro');
@@ -303,6 +308,22 @@ export default function FormFromVideo() {
     ref.currentTime = newTime;
   }
 
+  const scaleVideo = (e, ref) => {
+    let scale = e.target.value/100;
+    
+    switch(ref) {
+      case('pro'):
+        proVidAttributes.current.width = PRO_VID_WIDTH*scale;
+        proVidAttributes.current.height = PRO_VID_HEIGHT*scale;
+        break;
+      case('you'):
+        youVidAttributes.current.width = YOU_VID_WIDTH*scale;
+        youVidAttributes.current.height = YOU_VID_HEIGHT*scale;
+        break;
+    }
+
+    setProScale(e.target.value);
+  }
   
   
   return(
@@ -328,6 +349,11 @@ export default function FormFromVideo() {
         min="0" max="100" step="10"
         value={proOpacity}
         onChange={e => setProOpacity(e.target.value)} />
+      <input 
+        type="range" id="pro-vid-scale" name="pro-vid-scale" 
+        min="20" max="200" step="2"
+        value={proScale}
+        onChange={e => scaleVideo(e, activeSelect)} />
 
       <select name="active-select" 
                 id="active-select" 
