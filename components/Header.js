@@ -4,8 +4,8 @@ import Image from 'react-bootstrap/Image'
 
 export default function Header() {
   return  (
-    <Navbar bg="light" expand="md">
-      <Navbar.Brand href="/">SwingLikeAPro</Navbar.Brand>
+    <Navbar bg="light" expand="md" style={{backgroundColor: '#e3f2fd'}}>
+      <Navbar.Brand href="/">&nbsp;Swing Like A Pro</Navbar.Brand>
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
       <Navbar.Collapse id="basic-navbar-nav">
         {/*<Nav className="mr-auto">

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Webcam from 'react-webcam';
 import Spinner from 'react-bootstrap/Spinner';
+import Button from 'react-bootstrap/Button';
 import { Camera, CameraOptions } from '@mediapipe/camera_utils';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import { Pose } from '@mediapipe/pose';
@@ -34,7 +35,7 @@ export default function Form() {
 
   const [videoHeight, setVideoHeight] = useState(0);
   const [videoWidth, setVideoWidth] = useState(0);
-  const [proSelection, setProSelection] = useState('eagle');
+  const [proSelection, setProSelection] = useState('scott');
   const proData = useRef([...poseDataScott]);
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
@@ -955,15 +956,15 @@ export default function Form() {
             <td
                 className={styles.buttonCell}
                 >
-              <button className={styles.buttonFlip}
-                  onClick={() => setProOrientation(proOrientation === 1 ? -1 : 1)}>Flip Pro</button>
+              <Button className={styles.buttonFlip}
+                  onClick={() => setProOrientation(proOrientation === 1 ? -1 : 1)}>Flip Pro</Button>
             </td>
             <td
                 className={styles.buttonCell}
                 style={{textAlign: 'left'}}
                 >
-              <button className={styles.buttonFlip}
-                  onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</button>
+              <Button className={styles.buttonFlip}
+                  onClick={() => setCamOrientation(camOrientation === 1 ? -1 : 1)}>Flip Cam</Button>
             </td>
           </tr>
           {/*<tr>
