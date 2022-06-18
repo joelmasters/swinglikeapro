@@ -7,9 +7,7 @@ import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import { Pose } from '@mediapipe/pose';
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import styles from './Form.module.css';
-import { poseDataEagle, poseDataEagleMirrored } from './data/poseDataEagle.js';
-import { poseDataRicky, poseDataRickyMirrored } from './data/poseDataRicky.js';
-import { poseDataClemons, poseDataClemonsMirrored } from './data/poseDataClemons.js';
+import { poseDataScott, poseDataScottMirrored } from './data/poseDataScott.js';
 import helpers from './form-helpers';
 
 export default function Form() {
@@ -37,7 +35,7 @@ export default function Form() {
   const [videoHeight, setVideoHeight] = useState(0);
   const [videoWidth, setVideoWidth] = useState(0);
   const [proSelection, setProSelection] = useState('eagle');
-  const proData = useRef([...poseDataEagle]);
+  const proData = useRef([...poseDataScott]);
   const [proOpacity, setProOpacity] = useState(50);
   const [proOrientation, setProOrientation] = useState(-1);
   const [camOpacity, setCamOpacity] = useState(100);
@@ -589,8 +587,6 @@ export default function Form() {
         landmarkCtx.globalCompositeOperation = 'destination-atop';
         landmarkCtx.clearRect(0, 0, landmarkCanvasRef.current.width, landmarkCanvasRef.current.height);
         landmarkCtx.globalCompositeOperation = 'source-over';
-        //drawConnectors(landmarkCtx, poseDataEagle[proPlaybackCounter], POSE_CONNECTIONS,{color: '#00FF00', lineWidth: 4});
-        //drawLandmarks(landmarkCtx, poseDataEagle[proPlaybackCounter],{color: '#FF0000', lineWidth: 2});
 
         if (shouldUseMediaPipe.current === true) {
 
@@ -829,29 +825,15 @@ export default function Form() {
     proVid.current.load();
     setSeekWidth(0);
     switch(proSelection) {
-      case('eagle'):
+      case('scott'):
         if (proOrientation === -1) {
-          proData.current = [...poseDataEagle];
+          proData.current = [...poseDataScott];
         } else {
-          proData.current = [...poseDataEagleMirrored];
-        }
-        break;
-      case('ricky'):
-        if (proOrientation === -1) {
-          proData.current = [...poseDataRicky];
-        } else {
-          proData.current = [...poseDataRickyMirrored];
-        }
-        break;
-      case('clemons'):
-        if (proOrientation === -1) {
-          proData.current = [...poseDataClemons];
-        } else {
-          proData.current = [...poseDataClemonsMirrored];
+          proData.current = [...poseDataScottMirrored];
         }
         break;
       default:
-        proData.current = [...poseDataEagle];
+        proData.current = [...poseDataScott];
         break;
     }
   }, [proSelection, proOrientation])
@@ -916,15 +898,14 @@ export default function Form() {
         Please send feedback to: <a href="mailto: joelmasters@gmail.com">joelmasters@gmail.com</a>
       </div>
       <div className={styles.optionContainer}>
-        <select name="pro-select" 
+        {/*<select name="pro-select" 
                 id="pro-select" 
                 value={proSelection}
                 onChange={proVidSourceChange}>
           <option value="eagle">Eagle McMahon (Backhand)</option>
           <option value="ricky">Ricky Wysocki (Backhand)</option>
           <option value="clemons">Chris Clemons (Forehand)</option>
-          {/*<option value="kajiyama">Manabu Kajiyama</option>*/}
-        </select>
+      </select>*/}
         <table className={styles.optionsTable}>
           <tbody>
           <tr>
